@@ -10,7 +10,7 @@ dummy.rea
 1d-2,1d-2    (gcouple_q1,gcouple_q2 eV)
 1.9e-7,1.9e-7 (gamma_q1,gamma_q2 eV)
 2.0e-3,2.0e-3 (gamma_d_1,gamma_d_2 eV)
-1d-2,1d-2    (q_mu_1,q_mu_2 eV)
+2d-2,1d-2    (q_mu_1,q_mu_2 eV)
 1e-13        (pulse_t_0 s)
 2e-14        (pulse_duration s)
 1e-9         (pulse_fluence )
