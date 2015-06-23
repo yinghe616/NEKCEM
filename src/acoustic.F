@@ -962,11 +962,8 @@ c
          CALL COL3 (TMP1,DUDR,G1M1,NTOT)
          CALL COL3 (TMP2,DUDS,G2M1,NTOT)
 
-c     IF (IFDFRM(IEL)) THEN
-c     write(6,*) 'DDDDDD',iel,IFDFRM(IEL)
          CALL ADDCOL3 (TMP1,DUDS,G4M1,NTOT)
          CALL ADDCOL3 (TMP2,DUDR,G4M1,NTOT)
-c     ENDIF
 
          CALL COL2 (TMP1,HELM1,NTOT)
          CALL COL2 (TMP2,HELM1,NTOT)
@@ -974,7 +971,6 @@ c     ENDIF
          CALL ADD2R (AU,TM1,NTOT)
          CALL ADD2R (AU,TM2,NTOT)
 
-c          ENDIF
          ELSE
 
 c          3-d case ...............

@@ -1597,10 +1597,15 @@ C
 C
 c-----------------------------------------------------------------------
       REAL FUNCTION VLSC2(X,Y,N)
-      REAL X(1),Y(1)
+      REAL X(N),Y(N)
       include 'SIZE'
       include 'OPCTR'
       include 'PARALLEL'
+      logical is_present,acc_nek_present
+
+      is_present = (acc_nek_present(X,1).and.
+     $     acc_nek_present(Y,1))
+
 C
       if (isclld.eq.0) then
           isclld=1
@@ -1614,9 +1619,13 @@ C
       dcount      =      dcount + (isbcnt)
 C
       s = 0.
+!$ACC DATA PRESENT(X,Y) if(is_present)
+!$ACC PARALLEL LOOP if(is_present)
       do i=1,n
          s = s + x(i)*y(i)
       enddo
+!$ACC END PARALLEL LOOP 
+!$ACC END DATA
       vlsc2=s
       return
       end
@@ -2665,6 +2674,7 @@ C
 
       CALL GOP(TMP,WORK,'+  ',1)
       GLSC3 = TMP
+
       return
       end
 c-----------------------------------------------------------------------
