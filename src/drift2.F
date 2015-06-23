@@ -369,10 +369,10 @@ c-----------------------------------------------------------------------
 
       if (ifwt) then
          alpha = glsc3(xx(1,m),w,bb(1,m),n)
-c        if (nid.eq.0) write(6,*) alpha,'alpha 3'
+         if (nid.eq.0) write(6,*) alpha,'alpha 3'
       else
          alpha = glsc2(xx(1,m),bb(1,m),n)
-c        if (nid.eq.0) write(6,*) alpha,'alpha 2'
+         if (nid.eq.0) write(6,*) alpha,'alpha 2'
       endif
       scale = 1./sqrt(alpha)
       call cmult(xx(1,m),scale,n)
@@ -389,7 +389,9 @@ c        if (nid.eq.0) write(6,*) alpha,'alpha 2'
                alpha = alpha + .5*(vlsc2(xx(1,j),bb(1,k),n)
      $                       +     vlsc2(bb(1,j),xx(1,k),n))
             endif
+            write(6,*) 'aaaaaa',alpha
             scale = -glsum(alpha,1)
+            write(6,*) 'aaaaaa22',alpha,scale
             call add2s2(xx(1,k),xx(1,j),scale,n)
             call add2s2(bb(1,k),bb(1,j),scale,n)
          enddo

@@ -144,6 +144,8 @@ c.....source for c_n,c_p,c_e at current step: time= istep*dt = time+dt
       endif
 
       pi2 = pi*pi
+
+
       do i=1,npts
          xx    = xm1(i,1,1,1)
          yy    = ym1(i,1,1,1)
@@ -163,11 +165,12 @@ c.....source for c_n,c_p,c_e at current step: time= istep*dt = time+dt
          rhs_cn(i)=  tmp1+tmp2+tmp3+tmp4
          rhs_cp(i)= (tmp1+tmp2-tmp3-tmp4)*2.0
          rhs_ce(i)=  0.0!-1.0*(tmp1+tmp2)           
+         rhs_cn(i)= rhs_cn(i)*bmn(i)
+         rhs_cp(i)= rhs_cp(i)*bmn(i)
+         rhs_ce(i)= rhs_ce(i)*bmn(i)
+ 
       enddo
-      call col2(rhs_cN,bmn,npts)
-      call col2(rhs_cP,bmn,npts)
-      call col2(rhs_cE,bmn,npts)
-      
+
 c.....source for Neumann boundary value at time 
       if (ifrk) then
          tt=rktime
@@ -180,6 +183,7 @@ c..........................................
 c.....this adds Dirichlet (D) to Robin boundary  R= N+D: 
 c...  rhs_cn= rhs_cn + nbc_cn
 c...  rhs_cp= rhs_cp + nbc_cp
+
       call rzero(nbc_cn,npts)
       call rzero(nbc_cp,npts)
 
@@ -224,37 +228,6 @@ c...  rhs_cp= rhs_cp + nbc_cp
 
       call add2s2(rhs_cn,nbc_cn,1.0,npts)
       call add2s2(rhs_cp,nbc_cp,1.0,npts)
-c..........................................
-
-
-
-c..........................................
-c.....source for PEC boundary value at time 
-c     call rzero(cn_b,npts)
-c     call rzero(cp_b,npts)
-c     call rzero(ce_b,npts)
-c     if(ifsol) call usersol(tt,scn,scp,sce,dumm1,dumm1,dumm1)
-c     do i=1,ncemface_pec(2)
-c        j     = cemface_pec(i,2)
-c        i0    = cemface(j)
-c        cn_b(i0)=scn(i0)
-c     enddo
-c     do i=1,ncemface_pec(3)
-c        j     = cemface_pec(i,3)
-c        i0    = cemface(j)
-c        cp_b(i0)=scp(i0)
-c     enddo
-c     if(ifexct) then
-c     do i=1,ncemface_pec(4)
-c        j     = cemface_pec(i,4)
-c        i0    = cemface(j)
-c        ce_b(i0)=sce(i0)
-c     enddo
-c
-c     endif
-c..........................................
-
-
 
 c..........................................
 c.....source for potential field (phi) at time
@@ -272,9 +245,10 @@ c.....source for potential field (phi) at time
          tmp3 = tmp2-charge(i)*tmp1
          rhs_phi(i) = charge(i)*(cP(i)-cN(i))
          rhs_phi(i) = rhs_phi(i)+tmp3
+         rhs_phi(i) = rhs_phi(i)*bmn(i)
       enddo
-      call col2(rhs_phi,bmn,npts)
 
+      write(6,*) '11 rhs_phi rrr',(rhs_phi(i),i=1,5)
 c.....source for potential field (phi) with Neumann boundary value at time 
       tt= time
       call rzero(nbc_phi,npts)
@@ -296,20 +270,16 @@ c.....source for potential field (phi) with Neumann boundary value at time
          tmp1  =unx0*dudx+uny0*dudy
          nbc_phi(i0)=tmp1*area0
       enddo 
+
       call add2s2(rhs_phi,nbc_phi,1.0,npts)
+      write(6,*) '22 rhs_phi rrr',(rhs_phi(i),i=1,5)
+       call exitt
 
 
 c.....source for potential field (phi) with PEC  boundary value at time 
-      call rzero(potent_b,npts)
-
-c     if(ifsol) call usersol(tt,spotent,dumm1,dumm1,dumm1,dumm1,dumm1)
-c
-c     do i=1,ncemface_pec(1)
-c        j     = cemface_pec(i,1)
-c        i0    = cemface(j)
-c        potent_b(i0)=spotent(i0)
-c     enddo
-c..........................................
+      do i=1,npts
+         potent_b(i)=0.0
+      enddo 
 
       return
       end

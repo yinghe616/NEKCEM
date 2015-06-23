@@ -28,9 +28,11 @@ c---------------------------------------------------------------------
       include 'POISSON'  
       include 'ZPER'   
       integer  i, npts3, nxzfl3
+      integer  npts21
 
       npts3 = 3*npts
       nxzfl3= 3*nxzfl
+      npts21 = 21*npts
 
 c...  these to be deleted all when IFHEX/IFTET are done
 
@@ -53,6 +55,9 @@ c...  these to be deleted all when IFHEX/IFTET are done
           call rzero (cN   ,npts)
           call rzero (cP   ,npts)
           call rzero (cE   ,npts)
+          call rzero (cN1  ,npts)
+          call rzero (cP1  ,npts)
+          call rzero (cE1  ,npts)
           call rzero (scN  ,npts)
           call rzero (scP  ,npts)
           call rzero (scE  ,npts)
@@ -110,6 +115,7 @@ c...  these to be deleted all when IFHEX/IFTET are done
           call rzero (unym ,nxzfl)
           call rzero (unzm ,nxzfl)
           call rzero (aream,nxzfl)
+          call rzero (approx_o,npts21)
 
           do i=1,npts
              xmn (i)= xm1 (i,1,1,1)
@@ -785,8 +791,12 @@ c... setup variables for fast diagonalization: [A - kwave2*B] phi= B*rhs
       endif
 
       if(ifpec.and.ifinhom) then
+        call print_acc(potent_b,5,'po00')
       call axhelm3(wk1,potent_b,h1,h2,1,1) 
+        call print_acc(potent_b,5,'po11')
+        call print_acc(rhs,5,'rh01')
       call add2s2(rhs,wk1,-1.0,npts)
+        call print_acc(rhs,5,'rh01')
       endif 
 
 c...  GFDM direct methods   : param(25)=1
@@ -812,13 +822,30 @@ c...  additional treatment with projection method if negative
 
 c...  param(21)=-3: IFSEMG/projection=true
       if     (param(21).eq.-3)  then
+        
+        call print_acc(rhs,5,'rhs1')
         call project1  (rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
+
+        call print_acc(rhs,5,'rhs2')
+        call print_acc(approx_o(1,0),5,'app1')
+
         call copy      (potent,rhs,npts)
+
+        call print_acc(potent,5,'pot1')
+        call print_acc(rhs,5,'rhs3')   
+
         call hmh_gmres_mg (potent,h1,h2,mult,dmask(1,1),maxit)
+
+        call print_acc(potent,5,'pot2')   
+
         npts=nx1*ny1*nz1*nelt ! FIXME misun 12/28/2014: npts changes after multigrid.
         call project2  (potent,rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
+
+        call print_acc(potent,5,'pot3')
+        call print_acc(approx_o(1,0),5,'app2')
+        call exitt
 c...  param(21)= 3: IFSEMG=true
       elseif (param(21).eq.3)  then 
         call copy      (potent,rhs,npts)
@@ -957,10 +984,20 @@ c----------------------------------------------------------------------
       save icalled
       data icalled/0/
       if (.not.ifsrc) return  ! param(6)=1 to turn on
-!$ACC ENTER DATA CREATE(potent_b,cN_b,cP_b,cE_b) if(icalled.eq.0)
-      icalled = 1
+
+
+      call print_acc(rhs,5,'src0')
+!$ACC UPDATE HOST (resN,resP,resE,rhs)
+!$ACC UPDATE HOST (cN,cP,cE,potent)   
       call usersrc (idummy,resN,resP,resE,rhs,wk2,wk3)
-!$ACC UPDATE DEVICE(potent_b,cN_b,cP_b,cE_b)
+!$ACC UPDATE DEVICE (resN,resP,resE,rhs)
+!$ACC UPDATE DEVICE (scN,scP,scE) 
+!$ACC UPDATE DEVICE (cN_b,cP_b,cE_b,potent_b) 
+      icalled = 1
+
+
+      call print_acc(rhs,5,'src1')
+
       return
       end
 c=======================================================================
@@ -3169,6 +3206,7 @@ c     GMRES iteration.
 
       if (icalld.eq.0) call setup_mg(h1,h2)
 !$ACC ENTER DATA COPYIN(h1,h2) if(icalld.eq.0)
+!$ACC ENTER DATA COPYIN(ml,mu) CREATE(r,x,w,v,g,z) if(icalld.eq.0)
 
       icalld=1
 
@@ -3181,8 +3219,6 @@ c     GMRES iteration.
       if(.not.iflag) then
          iflag=.true.
          call uzawa_gmres_split(ml,mu,bm1,binvm1,n)
-!     Move data in only the first time
-!$ACC ENTER DATA COPYIN(ml,mu,h1,h2) CREATE(r,x,w,v,g,z)
          norm_fac = 1./sqrt(volvm1)
       endif
 
@@ -3384,7 +3420,6 @@ c----------------------------------------------------------------------
       call hsmg_setup_solve  ! set up the solver
 c     call hsmg_setup_dbg
 
-!$ACC ENTER DATA COPYIN(mg_schwarz_wt,mg_work,mg_mask,mg_rstr_wt)
       return
       end
 c----------------------------------------------------------------------
@@ -3794,14 +3829,18 @@ c----------------------------------------------------------------------
       integer l1,l2,nx,ny,nz
       real arr1(nx,ny,nz,nelt),arr2(nx,ny,nz,nelt)
       real f1,f2
-      
+      logical is_present, acc_nek_present
       integer i,j,k,ie,i0,i1
       i0=2
       i1=nx-1
 !    This may fail because we arr1 and arr2 are the same?
-!$ACC DATA PRESENT(arr1,arr2)
+
+      is_present=(acc_nek_present(arr1,1).and.
+     $            acc_nek_present(arr2,1))
+
+!$ACC DATA PRESENT(arr1,arr2) if (is_present)
       if(.not.if3d) then
-!$ACC PARALLEL LOOP
+!$ACC PARALLEL LOOP  if (is_present)
          do ie=1,nelt
             do j=i0,i1
                arr1(l1+1 ,j,1,ie) = f1*arr1(l1+1 ,j,1,ie)
@@ -3818,7 +3857,7 @@ c----------------------------------------------------------------------
          enddo
 !$ACC END PARALLEL LOOP
       else
-!$ACC PARALLEL LOOP
+!$ACC PARALLEL LOOP  if (is_present)
          do ie=1,nelt
             do k=i0,i1
             do j=i0,i1
@@ -3896,7 +3935,7 @@ c----------------------------------------------------------------------
       enz=mg_nh(l)+2
       if(.not.if3d) enz=1
       i = enx*eny*enz*nelt+1
- 
+      
 c     exchange interior nodes
       call hsmg_extrude(mg_work,0,zero,mg_work,2,one,enx,eny,enz)
       call hsmg_schwarz_dssum(mg_work,l)
@@ -4038,10 +4077,14 @@ c----------------------------------------------------------------------
       include 'SIZE'
       integer n
       real a(0:n+1,0:n+1,nelt),b(n,n,nelt)
-      
+      logical is_present, acc_nek_present
       integer i,j,ie
-!$ACC DATA PRESENT(b,a)
-!$ACC PARALLEL LOOP
+
+      is_present=(acc_nek_present(a,1).and.
+     $            acc_nek_present(b,1))
+      
+!$ACC DATA PRESENT(b,a) if (is_present)
+!$ACC PARALLEL LOOP if (is_present)
       do ie=1,nelt
       do j=1,n
       do i=1,n
@@ -4789,7 +4832,9 @@ c----------------------------------------------------------------------
       integer l,i,nl,nlz
 
       i = mg_schwarz_wt_index(mg_lmax,mg_fld-1)
+      if (nid.eq.0) write(6,*) 'ssss1'
       do l=2,mg_lmax-1
+      if (nid.eq.0) write(6,*) 'ssss2'
          mg_schwarz_wt_index(l,mg_fld)=i
          nl = mg_nh(l)
          nlz = mg_nh(l)
@@ -4801,9 +4846,12 @@ c----------------------------------------------------------------------
             call exitt
          endif
 
+      if (nid.eq.0) write(6,*) 'ssss3'
          call h1mg_setup_schwarz_wt_1(
      $      mg_schwarz_wt(mg_schwarz_wt_index(l,mg_fld)),l,ifsqrt)
+      if (nid.eq.0) write(6,*) 'ssss4'
       enddo
+      if (nid.eq.0) write(6,*) 'ssss5'
       mg_schwarz_wt_index(l,mg_fld)=i
 
       return
@@ -4830,7 +4878,7 @@ c----------------------------------------------------------------------
             write(6,*) 'lmg_swt too small',i,itmp,lmg_swt,l
             call exitt
          endif
-
+        
          call h1mg_setup_schwarz_wt_1(
      $      mg_schwarz_wt(mg_schwarz_wt_index(l,mg_fld)),l,ifsqrt)
 
@@ -6467,6 +6515,7 @@ c----------------------------------------------------------------------
       real work(n,n)
       
       integer ie,i,j
+
       do j=1,n
          wt(j,1,1,ie)=1.0/work(1,j)
          wt(j,2,1,ie)=1.0/work(2,j)
@@ -6548,7 +6597,7 @@ c----------------------------------------------------------------------
       include 'TSTEP'  ! ifield
       include 'HSMG'
 
-      real wt(1),work(1)
+      real wt(l),work(l)
       logical ifsqrt
 
       integer enx,eny,enz,pm
@@ -6563,6 +6612,7 @@ c----------------------------------------------------------------------
       enx=mg_nh(l)+2
       eny=mg_nh(l)+2
       enz=mg_nh(l)+2
+
       if(.not.if3d) enz=1
       ns = enx*eny*enz*nelfld(ifield)
       i  = ns+1
@@ -9041,7 +9091,9 @@ c     Galerkin projection
             call copy(w1(1,e),b(1,j),nxyz)
          enddo
 
-         call axhelm3(w2,w1,h1,h2,imsh,isd)        ! A^e * bj
+         !FIXME: change back to axhelm3.
+         call axhelm3_mpi(w2,w1,h1,h2,imsh,isd)        ! A^e * bj
+         !call axhelm3(w2,w1,h1,h2,imsh,isd)        ! A^e * bj
 
          do e = 1,nelv
          do i = 1,ncl
@@ -9178,6 +9230,7 @@ c-----------------------------------------------------------------------
       subroutine setup_mg(h1,h2)
       include 'SIZE'
       include 'TOTAL'
+      include 'HSMG' 
       real h1(1),h2(1)
 
 
@@ -9189,7 +9242,22 @@ c-----------------------------------------------------------------------
       call h1mg_setup(h1,h2)
 
       call set_up_h1_crs(h1,h2)
+c!$ACC ENTER DATA COPYIN(mg_schwarz_wt,mg_work,mg_mask,mg_rstr_wt)
 !
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine print_acc(a,n,text)
+      include 'SIZE'
+      integer n,i
+      real    a(n)
+      character*4 text
+
+#ifdef _OPENACC
+!$ACC update host(a) 
+#endif
+      if (nid.eq.0) write(6,*) text,(a(i),i=1,n)
+
       return
       end
 c-----------------------------------------------------------------------
