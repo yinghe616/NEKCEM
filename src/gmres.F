@@ -252,6 +252,9 @@ c-----------------------------------------------------------------------
       integer n
       real l(n),u(n),b(n),binv(n)
       integer i
+
+!$ACC DATA PRESENT (l,u) 
+!$ACC PARALLEL LOOP 
       do i=1,n
 c        l(i)=sqrt(binv(i))
 c        u(i)=sqrt(b(i))
@@ -263,9 +266,11 @@ c        l(i)=sqrt(binv(i))
          l(i)=1.
          u(i)=1./l(i)
 
-
 c        if(abs(u(i)*l(i)-1.0).gt.1e-13)write(6,*) i,u(i)*l(i),' gmr_sp'
       enddo
+!$ACC END PARALLEL LOOP
+!$ACC END DATA
+
       return
       end
 

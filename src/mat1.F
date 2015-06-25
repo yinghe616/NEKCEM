@@ -377,8 +377,8 @@ c-----------------------------------------------------------------------
       SUBROUTINE CMULT2 (A,B,CONST,N)
       DIMENSION A(N),B(N)
       logical is_present,acc_nek_present
-      is_present = (acc_nek_present(A,1).and.
-     $     acc_nek_present(b,1))
+      is_present = (acc_nek_present(A,1).and.acc_nek_present(b,1))
+
 !$ACC DATA PRESENT(A,B) if(is_present)
 !$ACC PARALLEL LOOP if(is_present)
       DO 100 I=1,N

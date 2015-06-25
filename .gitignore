@@ -31,3 +31,10 @@ gslib_test
 nekcem
 SIZE
 subuser.F
+
+# Output files
+SESSION.NAME
+*output
+*vtk*
+*tmp*
+

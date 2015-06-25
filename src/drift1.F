@@ -791,12 +791,8 @@ c... setup variables for fast diagonalization: [A - kwave2*B] phi= B*rhs
       endif
 
       if(ifpec.and.ifinhom) then
-        call print_acc(potent_b,5,'po00')
       call axhelm3(wk1,potent_b,h1,h2,1,1) 
-        call print_acc(potent_b,5,'po11')
-        call print_acc(rhs,5,'rh01')
       call add2s2(rhs,wk1,-1.0,npts)
-        call print_acc(rhs,5,'rh01')
       endif 
 
 c...  GFDM direct methods   : param(25)=1
@@ -823,28 +819,22 @@ c...  additional treatment with projection method if negative
 c...  param(21)=-3: IFSEMG/projection=true
       if     (param(21).eq.-3)  then
         
-        call print_acc(rhs,5,'rhs1')
+        call print_acc(rhs,5,'rhs0',1)
+        call print_acc(approx_o,5,'app0',1)
         call project1  (rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
-
-        call print_acc(rhs,5,'rhs2')
-        call print_acc(approx_o(1,0),5,'app1')
-
+        call print_acc(rhs,5,'rhs ',1)
+        call print_acc(approx_o,5,'app ',1)
         call copy      (potent,rhs,npts)
-
-        call print_acc(potent,5,'pot1')
-        call print_acc(rhs,5,'rhs3')   
+        call print_acc(potent,5,'ppp ',1)
+        call exitt
 
         call hmh_gmres_mg (potent,h1,h2,mult,dmask(1,1),maxit)
-
-        call print_acc(potent,5,'pot2')   
 
         npts=nx1*ny1*nz1*nelt ! FIXME misun 12/28/2014: npts changes after multigrid.
         call project2  (potent,rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
 
-        call print_acc(potent,5,'pot3')
-        call print_acc(approx_o(1,0),5,'app2')
         call exitt
 c...  param(21)= 3: IFSEMG=true
       elseif (param(21).eq.3)  then 
@@ -986,7 +976,6 @@ c----------------------------------------------------------------------
       if (.not.ifsrc) return  ! param(6)=1 to turn on
 
 
-      call print_acc(rhs,5,'src0')
 !$ACC UPDATE HOST (resN,resP,resE,rhs)
 !$ACC UPDATE HOST (cN,cP,cE,potent)   
       call usersrc (idummy,resN,resP,resE,rhs,wk2,wk3)
@@ -994,9 +983,6 @@ c----------------------------------------------------------------------
 !$ACC UPDATE DEVICE (scN,scP,scE) 
 !$ACC UPDATE DEVICE (cN_b,cP_b,cE_b,potent_b) 
       icalled = 1
-
-
-      call print_acc(rhs,5,'src1')
 
       return
       end
@@ -3162,11 +3148,10 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine hmh_gmres_mg(res,h1,h2,wt,mask,iter)
+      subroutine hmh_gmres_mg(res,h1,h2,mult,mask,iter)
 
 c     Solve the Helmholtz equation by right-preconditioned 
 c     GMRES iteration.
-
      
       include 'SIZE'
       include 'TOTAL'
@@ -3178,7 +3163,7 @@ c     GMRES iteration.
       real    res (lx1,ly1,lz1,lelt)
       real    h1  (lx1,ly1,lz1,lelt)
       real    h2  (lx1,ly1,lz1,lelt)
-      real    wt  (lx1,ly1,lz1,lelt)
+      real    mult  (lx1,ly1,lz1,lelt)
       real    mask(lx1*ly1*lz1*lelt,ldimt)
 
       common /scrcg/   d(lx1*ly1*lz1*lelv),wk(lx1*ly1*lz1*lelv)
@@ -3204,9 +3189,15 @@ c     GMRES iteration.
 
       n = nx1*ny1*nz1*nelt
 
+            call print_acc(res,5,'top ',1)
+            call print_acc(mult,5,'m 1',1)
+            call print_acc(mask,5,'m 2',1)
+            call print_acc(h1,5,'h 1',1)
+            call print_acc(h2,5,'h 2',1)
       if (icalld.eq.0) call setup_mg(h1,h2)
+   
 !$ACC ENTER DATA COPYIN(h1,h2) if(icalld.eq.0)
-!$ACC ENTER DATA COPYIN(ml,mu) CREATE(r,x,w,v,g,z) if(icalld.eq.0)
+!$ACC ENTER DATA CREATE(wk1,ml,mu,r,x,w,v,g,z) if(icalld.eq.0)
 
       icalld=1
 
@@ -3222,10 +3213,6 @@ c     GMRES iteration.
          norm_fac = 1./sqrt(volvm1)
       endif
 
-c     call chktcg1(tolps,res,h1,h2,mask,wt,1,1)
-c     if (param(22).gt.0.and.tolps.gt.abs(param(22))) 
-c    $   tolps = abs(param(22))
-
       tolps = abs(param(22))
       if (istep.eq.0) tolps = 1.e-4
       tolpss = tolps
@@ -3238,7 +3225,9 @@ c
          outer = outer+1
 
          if(iter.eq.0) then                       !      -1
-            call col3(r,ml,res,n)                 ! r = L  res
+            call print_acc(r,5,'rr 1',1)
+            call print_acc(res,5,'rr 2',1)
+            call col3  (r,ml,res,n)                 ! r = L  res
          else                                     ! update residual
             call copy  (r,res,n)                  ! r = res
             call axh   (w,x,h1,h2,mask,n)         ! w = A x
@@ -3247,7 +3236,10 @@ c
             call col2(r,ml,n)                     ! r = L   r
          endif
                                                   !            ______
-         gamma(1) = sqrt(glsc3(r,r,wt,n))         ! gamma  = \/ (r,r) 
+            call print_acc(r,5,'sq 1',1)
+            call print_acc(mult,5,'sq 2',1)
+         gamma(1) = sqrt(glsc3(r,r,mult,n))         ! gamma  = \/ (r,r) 
+         write(6,*) 'gaaaaaa',gamma(1)
                                                   !      1
          if(iter.eq.0) then
             div0 = gamma(1)*norm_fac
@@ -3258,14 +3250,23 @@ c
          rnorm = 0.
          if(gamma(1) .eq. 0.) goto 9000
          temp = 1./gamma(1)
+            call print_acc(r,5,'b r1',1)
+            call print_acc(v,5,'b v2',1)
          call cmult2(v(1,1),r,temp,n)             ! v  = r / gamma
+            call print_acc(r,5,'a r1',1)
+            call print_acc(v,5,'a v2',1)
+      
                                                   !  1            1
          do j=1,m
             iter = iter+1
                                                   !       -1
+            call print_acc(mu,5,'b m1',1)
             call col3(w,mu,v(1,j),n)              ! w  = U   v
+            call print_acc(w,5,'b w1',1)
+             call exitt
                                                   !           j
-            call h1mg_solve(z(1,j),w,wt)          ! z  = M   w
+            call h1mg_solve(z(1,j),w,mult)          ! z  = M   w
+    
 c           call copy(z(1,j),w,n)                 ! NO preconditioner
 
             call axh (w,z(1,j),h1,h2,mask,n)      ! w = A z
@@ -3273,13 +3274,14 @@ c           call copy(z(1,j),w,n)                 ! NO preconditioner
             call col2(w,ml,n)                     ! w = L   w
 
             do i=1,j
-               h(i,j)=vlsc3(w,v(1,i),wt,n)        ! h    = (w,v )
+               h(i,j)=vlsc3(w,v(1,i),mult,n)        ! h    = (w,v )
             enddo                                 !  i,j       i
 
 !FIXME Note gop on CPU
 !$ACC UPDATE HOST(wk1)
             call gop(h(1,j),wk1,'+  ',j)          ! sum over P procs
 !$ACC UPDATE DEVICE(wk1)
+            call print_acc(h,5,'hhh ',1)
 
             do i=1,j
                call add2s2(w,v(1,i),-h(i,j),n)    ! w = w - h    v
@@ -3291,7 +3293,7 @@ c           call copy(z(1,j),w,n)                 ! NO preconditioner
                h(i+1,j)= -s(i)*temp + c(i)*h(i+1,j)
             enddo
                                                  !            ______
-            alpha = sqrt(glsc3(w,w,wt,n))        ! alpha =  \/ (w,w)
+            alpha = sqrt(glsc3(w,w,mult,n))        ! alpha =  \/ (w,w)
             rnorm = 0.
             if(alpha.eq.0.) goto 900  !converged
             l = sqrt(h(j,j)*h(j,j)+alpha*alpha)
@@ -3675,8 +3677,13 @@ c     v = [C (x) B (x) A] u
       parameter (lwk=(lx1+2)*(ly1+2)*(lz1+2))
       common /hsmgw/ work(0:lwk-1),work2(0:lwk-1)
       integer ie, i
-!$ACC DATA PRESENT(v,u,A,Bt,Ct) CREATE(work,work2)
-!$ACC PARALLEL LOOP
+      logical is_present,acc_nek_present
+      is_present=(acc_nek_present(v ,1).and.acc_nek_present(u ,1).and.
+     $            acc_nek_present(A ,1).and.acc_nek_present(Bt,1).and.
+     $            acc_nek_present(Ct,1))
+
+!$ACC DATA PRESENT(v,u,A,Bt,Ct) CREATE(work,work2) if (is_present)
+!$ACC PARALLEL LOOP if (is_present)
          do ie=1,nelt
 !            call mxm(A,nv,u,nu,work,nu*nu)
             do j=1,nu*nu
@@ -3887,6 +3894,7 @@ c----------------------------------------------------------------------
 !$ACC END PARALLEL LOOP
       endif
 !$ACC END DATA
+
       return
       end
 c----------------------------------------------------------------------
@@ -3899,8 +3907,11 @@ c----------------------------------------------------------------------
       n = mg_h1_n(l,mg_fld)
 
       call h1mg_schwarz_part1 (e,r,l)
+      call print_acc(e,5,'ee 1',1)
       call hsmg_schwarz_wt    (e,l)          ! e  := W e
+      call print_acc(e,5,'ee 2',1)
       call cmult              (e,sigma,n)    !  l       l
+      call print_acc(e,5,'ee 3',1)
 
       return
       end
@@ -3922,13 +3933,18 @@ c----------------------------------------------------------------------
       n  = mg_h1_n (l,mg_fld)
       pm = p_mg_msk(l,mg_fld)
 
+      call print_acc(r,5,'mm 1',1)
+      call print_acc_int(mg_imask(pm),5,'ss 1',1)
       call h1mg_mask  (r,mg_imask(pm),nelfld(ifield))  ! Zero Dirichlet nodes
+   
+      call print_acc(r,5,'mm 2',1)
 
       if (if3d) then ! extended array 
          call hsmg_schwarz_toext3d(mg_work,r,mg_nh(l))
       else
          call hsmg_schwarz_toext2d(mg_work,r,mg_nh(l))
       endif
+      call print_acc(mg_work,5,'ww 1',1)
 
       enx=mg_nh(l)+2
       eny=mg_nh(l)+2
@@ -3940,14 +3956,20 @@ c     exchange interior nodes
       call hsmg_extrude(mg_work,0,zero,mg_work,2,one,enx,eny,enz)
       call hsmg_schwarz_dssum(mg_work,l)
       call hsmg_extrude(mg_work,0,one ,mg_work,2,onem,enx,eny,enz)
+      call print_acc(mg_work,5,'ww 4',1)
 
       call hsmg_fdm(mg_work(i),mg_work,l) ! Do the local solves
+      call print_acc(mg_work,5,'ww 5',1)
 
 c     Sum overlap region (border excluded)
       call hsmg_extrude(mg_work,0,zero,mg_work(i),0,one ,enx,eny,enz)
+      call print_acc(mg_work,5,'ww 6',1)
       call hsmg_schwarz_dssum(mg_work(i),l)
+      call print_acc(mg_work,5,'ww 7',1)
       call hsmg_extrude(mg_work(i),0,one ,mg_work,0,onem,enx,eny,enz)
+      call print_acc(mg_work,5,'ww 8',1)
       call hsmg_extrude(mg_work(i),2,one,mg_work(i),0,one,enx,eny,enz)
+      call print_acc(mg_work,5,'ww 9',1)
 
       if(.not.if3d) then ! Go back to regular size array
          call hsmg_schwarz_toreg2d(e,mg_work(i),mg_nh(l))
@@ -4023,10 +4045,11 @@ c----------------------------------------------------------------------
       subroutine hsmg_schwarz_toext2d(a,b,n)
       include 'SIZE'
       integer n
-      real a(0:n+1,0:n+1,nelt),b(n,n,nelt)
-      
+      real    a(0:n+1,0:n+1,nelt),b(n,n,nelt)
       integer i,j,ie
-c      call rzero(a,(n+2)*(n+2)*nelt)
+
+c     call rzero(a,(n+2)*(n+2)*nelt)
+
 !$ACC DATA PRESENT(a,b)
 !$ACC PARALLEL LOOP
       do ie=1,nelt
@@ -4046,6 +4069,7 @@ c      call rzero(a,(n+2)*(n+2)*nelt)
       enddo
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
+
       return
       end
 c----------------------------------------------------------------------
@@ -4053,9 +4077,10 @@ c----------------------------------------------------------------------
       include 'SIZE'
       integer n
       real a(0:n+1,0:n+1,0:n+1,nelt),b(n,n,n,nelt)
-      
       integer i,j,k,ie
+
       call rzero(a,(n+2)*(n+2)*(n+2)*nelt)
+
 !     a(0:..) might not work in acc?
 !$ACC DATA PRESENT(a,b)
 !$ACC PARALLEL LOOP COLLAPSE(4)
@@ -4070,6 +4095,7 @@ c----------------------------------------------------------------------
       enddo
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
+
       return
       end
 c----------------------------------------------------------------------
@@ -4080,8 +4106,7 @@ c----------------------------------------------------------------------
       logical is_present, acc_nek_present
       integer i,j,ie
 
-      is_present=(acc_nek_present(a,1).and.
-     $            acc_nek_present(b,1))
+      is_present = (acc_nek_present(a,1).and.acc_nek_present(b,1))
       
 !$ACC DATA PRESENT(b,a) if (is_present)
 !$ACC PARALLEL LOOP if (is_present)
@@ -4094,6 +4119,7 @@ c----------------------------------------------------------------------
       enddo
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
+
       return
       end
 c----------------------------------------------------------------------
@@ -4101,11 +4127,13 @@ c----------------------------------------------------------------------
       include 'SIZE'
       integer n
       real a(0:n+1,0:n+1,0:n+1,nelt),b(n,n,n,nelt)
-      
-      integer i,j,k,ie
+      logical is_present, acc_nek_present
+      integer i,j,ie
 
-!$ACC DATA PRESENT(b,a)
-!$ACC PARALLEL LOOP
+      is_present = (acc_nek_present(a,1).and.acc_nek_present(b,1))
+      
+!$ACC DATA PRESENT(b,a) if (is_present)
+!$ACC PARALLEL LOOP if (is_present)
       do ie=1,nelt
       do k=1,n
       do j=1,n
@@ -4376,6 +4404,7 @@ c     clobbers r
       include 'SIZE'
       include 'INPUT'
       include 'HSMG'
+
 #ifdef _OPENACC
       call hsmg_do_fast_acc(e,r,
      $      mg_fast_s(mg_fast_s_index(l,mg_fld)),
@@ -4400,7 +4429,7 @@ c     clobbers r
       real r(nl**ndim,nelt)
       real s(nl*nl,2,ndim,nelt)
       real d(nl**ndim,nelt)
-      integer ie,nn,i,j,k,l,i0,j0,k0,nu,nv
+      integer ie,nn,i,j,k,l,i0,j0,k0,je,nu,nv
       parameter (lwk=(lx1+2)*(ly1+2)*(lz1+2))
       common /hsmgw/ work(0:lwk-1),work2(0:lwk-1)
       real work,work2
@@ -4414,7 +4443,7 @@ c     clobbers r
             call hsmg_tnsr2d_el(e(1,ie),nl,r(1,ie),nl
      $                         ,s(1,2,1,ie),s(1,1,2,ie))
             do i=1,nn
-               r(i,ie)=d(i,ie)*e(i,ie)
+               r(i,je)=d(i,ie)*e(i,ie)
             enddo
             call hsmg_tnsr2d_el(e(1,ie),nl,r(1,ie),nl
      $                         ,s(1,1,1,ie),s(1,2,2,ie))
@@ -4488,7 +4517,7 @@ c     clobbers r
             enddo
 
             do i=1,nu
- !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
+!              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
@@ -4832,9 +4861,7 @@ c----------------------------------------------------------------------
       integer l,i,nl,nlz
 
       i = mg_schwarz_wt_index(mg_lmax,mg_fld-1)
-      if (nid.eq.0) write(6,*) 'ssss1'
       do l=2,mg_lmax-1
-      if (nid.eq.0) write(6,*) 'ssss2'
          mg_schwarz_wt_index(l,mg_fld)=i
          nl = mg_nh(l)
          nlz = mg_nh(l)
@@ -4846,12 +4873,9 @@ c----------------------------------------------------------------------
             call exitt
          endif
 
-      if (nid.eq.0) write(6,*) 'ssss3'
          call h1mg_setup_schwarz_wt_1(
      $      mg_schwarz_wt(mg_schwarz_wt_index(l,mg_fld)),l,ifsqrt)
-      if (nid.eq.0) write(6,*) 'ssss4'
       enddo
-      if (nid.eq.0) write(6,*) 'ssss5'
       mg_schwarz_wt_index(l,mg_fld)=i
 
       return
@@ -5232,8 +5256,6 @@ c     mg_lmax = 3
 c     mg_lmax = 2
       mg_lmax = 3
 
-c     uuuu
-
       if (lx1.eq.4) mg_lmax = 2
 
       mgnx1    = p82-1 !1
@@ -5502,6 +5524,8 @@ c     return
 !FIXME : MJO - 5/9/15 Maybe do enter data to reduce overhead>
 !$ACC DATA CREATE(e,w,r)
       call h1mg_schwarz(z,rhs,sigma,l)                ! z := sigma W M     rhs
+      call print_acc(z,5,'zz22',1)
+      call exitt
                                                       !               Schwarz
       call copy(r,rhs,n)                              ! r  := rhs
 
@@ -5559,9 +5583,12 @@ c-----------------------------------------------------------------------
       real    w   (nel)
       integer mask(lx1*ly1*lz1*lelt)        ! Pointer to Dirichlet BCs
       integer e
+      logical is_present, acc_nek_present
+
+      is_present = (acc_nek_present(w,1).and.acc_nek_present(mask,1))
       
-!$ACC DATA PRESENT(mask,w)
-!$ACC PARALLEL LOOP
+!$ACC DATA PRESENT(mask,w) if(is_present)
+!$ACC PARALLEL LOOP if(is_present)
       do e=1,nel
          im = mask(e)
 !     MJO - 5/8/15 - Inlined the below function. Function call is original
@@ -5833,8 +5860,6 @@ c     mg_h1_lmax = 4
 c     mg_h1_lmax = 3
 c     mg_h1_lmax = 2
       mg_h1_lmax = 3
-
-c     uuuu
 
       if (lx1.eq.4) mg_h1_lmax = 2
 
@@ -9242,22 +9267,38 @@ c-----------------------------------------------------------------------
       call h1mg_setup(h1,h2)
 
       call set_up_h1_crs(h1,h2)
-c!$ACC ENTER DATA COPYIN(mg_schwarz_wt,mg_work,mg_mask,mg_rstr_wt)
-!
+!$ACC ENTER DATA COPYIN(mg_schwarz_wt,mg_rstr_wt)
+!$ACC ENTER DATA COPYIN(mg_work,mg_mask,mg_nh,mg_imask)
+!$ACC ENTER DATA COPYIN(mg_fast_s,mg_fast_d)
       return
       end
 c-----------------------------------------------------------------------
-      subroutine print_acc(a,n,text)
+      subroutine print_acc(a,n,text,mode)
       include 'SIZE'
-      integer n,i
+      integer n,i,mode
       real    a(n)
       character*4 text
 
 #ifdef _OPENACC
-!$ACC update host(a) 
+!$ACC update host(a) if (mode.eq.1)  !copies the data from device to host  
 #endif
-      if (nid.eq.0) write(6,*) text,(a(i),i=1,n)
+      if (nid.eq.0) write(6,*) text,(a(i),i=1,n) ! prints data on host
 
       return
       end
 c-----------------------------------------------------------------------
+      subroutine print_acc_int(a,n,text,mode)
+      include 'SIZE'
+      integer n,i,mode
+      integer a(n)
+      character*4 text
+
+#ifdef _OPENACC
+!$ACC update host(a) if (mode.eq.1)  !copies the data from device to !host  
+#endif
+      if (nid.eq.0) write(6,*) text,(a(i),i=1,n) ! prints data on host
+
+      return
+      end
+c-----------------------------------------------------------------------
+

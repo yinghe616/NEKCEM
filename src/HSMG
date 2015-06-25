@@ -72,8 +72,9 @@ c
       real mg_h1,mg_h2,mg_b,mg_g
       real mg_work,mg_work1,mg_work2,mg_worke
 
-      integer mg_imask(0:lmgs*lmg_rwt*4*ldim*lelt-1) ! For h1mg, mask is a ptr
-      equivalence(mg_imask,mg_mask)
+      common /mghi/ mg_imask(0:lmgs*lmg_rwt*4*ldim*lelt-1) ! For h1mg, mask is a ptr
+      integer       mg_imask
+c     equivalence(mg_imask,mg_mask)
 
 
 c     Specific to h1 multigrid:

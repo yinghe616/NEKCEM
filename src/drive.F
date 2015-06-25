@@ -924,7 +924,7 @@ c----------------------------------------------------------------------
 !$ACC&      CREATE(ErrHN,ErrEN,SHN,SEN)
 !$ACC&      CREATE(ug)
 
-!$ACC&      COPYIN(DYM1,DZM1,DYTM1,DZTM1,bmn)
+!$ACC&      COPYIN(DYM1,DZM1,DYTM1,DZTM1,bmn,binvm1)
 !$ACC&      COPYIN(resN,resP,resE,resNQ,resPQ,resEQ)
 !$ACC&      COPYIN(resNJ,resPJ,resEJ)
 !$ADD&      COPYIN(mu_p,mu_n,mu_e,charge,ni,diff_n,diff_p,diff_e)
