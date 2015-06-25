@@ -791,8 +791,12 @@ c... setup variables for fast diagonalization: [A - kwave2*B] phi= B*rhs
       endif
 
       if(ifpec.and.ifinhom) then
+        call print_acc(potent_b,5,'po00')
       call axhelm3(wk1,potent_b,h1,h2,1,1) 
+        call print_acc(potent_b,5,'po11')
+        call print_acc(rhs,5,'rh01')
       call add2s2(rhs,wk1,-1.0,npts)
+        call print_acc(rhs,5,'rh01')
       endif 
 
 c...  GFDM direct methods   : param(25)=1
@@ -819,17 +823,21 @@ c...  additional treatment with projection method if negative
 c...  param(21)=-3: IFSEMG/projection=true
       if     (param(21).eq.-3)  then
         
-        call print_acc(rhs,5,'rhs0',1)
-        call print_acc(approx_o,5,'app0',1)
+        call print_acc(rhs,5,'rhs1')
         call project1  (rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
-        call print_acc(rhs,5,'rhs ',1)
-        call print_acc(approx_o,5,'app ',1)
+
+        call print_acc(rhs,5,'rhs2')
+        call print_acc(approx_o(1,0),5,'app1')
+
         call copy      (potent,rhs,npts)
-        call print_acc(potent,5,'ppp ',1)
-        call exitt
+
+        call print_acc(potent,5,'pot1')
+        call print_acc(rhs,5,'rhs3')   
 
         call hmh_gmres_mg (potent,h1,h2,mult,dmask(1,1),maxit)
+
+        call print_acc(potent,5,'pot2')   
 
         npts=nx1*ny1*nz1*nelt ! FIXME misun 12/28/2014: npts changes after multigrid.
         call project2  (potent,rhs,npts,approx_o,napprox_o,h1,h2,
@@ -976,6 +984,7 @@ c----------------------------------------------------------------------
       if (.not.ifsrc) return  ! param(6)=1 to turn on
 
 
+      call print_acc(rhs,5,'src0')
 !$ACC UPDATE HOST (resN,resP,resE,rhs)
 !$ACC UPDATE HOST (cN,cP,cE,potent)   
       call usersrc (idummy,resN,resP,resE,rhs,wk2,wk3)
@@ -983,6 +992,8 @@ c----------------------------------------------------------------------
 !$ACC UPDATE DEVICE (scN,scP,scE) 
 !$ACC UPDATE DEVICE (cN_b,cP_b,cE_b,potent_b) 
       icalled = 1
+
+      call print_acc(rhs,5,'src1')
 
       return
       end
@@ -4861,7 +4872,9 @@ c----------------------------------------------------------------------
       integer l,i,nl,nlz
 
       i = mg_schwarz_wt_index(mg_lmax,mg_fld-1)
+      if (nid.eq.0) write(6,*) 'ssss1'
       do l=2,mg_lmax-1
+      if (nid.eq.0) write(6,*) 'ssss2'
          mg_schwarz_wt_index(l,mg_fld)=i
          nl = mg_nh(l)
          nlz = mg_nh(l)
@@ -4873,9 +4886,12 @@ c----------------------------------------------------------------------
             call exitt
          endif
 
+      if (nid.eq.0) write(6,*) 'ssss3'
          call h1mg_setup_schwarz_wt_1(
      $      mg_schwarz_wt(mg_schwarz_wt_index(l,mg_fld)),l,ifsqrt)
+      if (nid.eq.0) write(6,*) 'ssss4'
       enddo
+      if (nid.eq.0) write(6,*) 'ssss5'
       mg_schwarz_wt_index(l,mg_fld)=i
 
       return
@@ -9267,6 +9283,7 @@ c-----------------------------------------------------------------------
       call h1mg_setup(h1,h2)
 
       call set_up_h1_crs(h1,h2)
+
 !$ACC ENTER DATA COPYIN(mg_schwarz_wt,mg_rstr_wt)
 !$ACC ENTER DATA COPYIN(mg_work,mg_mask,mg_nh,mg_imask)
 !$ACC ENTER DATA COPYIN(mg_fast_s,mg_fast_d)
@@ -9301,4 +9318,3 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
-
