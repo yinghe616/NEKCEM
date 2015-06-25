@@ -42,22 +42,24 @@ static void test(const struct comm *comm)
   free(v);
 }
 
+
 int main(int narg, char *arg[])
 {
   comm_ext world; int np;
   FILE *inp;
+  struct gs_data *gsh;
   struct comm comm;
   int *targetCoreIndexing,index;
-  int *sendbuf,*recvbuf,*sendcounts,*displs;
+  slong *sendbuf,*recvbuf;
+  int *sendcounts,*displs,*duplicate_count;
   int ret,totalElements,maxNp,v1,v2,v3,v4;
-  int arrayOffset;
-  int maxElementsPerCore,elementIndex,targetCore,i,j,nid,k;
+  int arrayOffset,kOld,localBufSpace,maxArray;
+  int elementIndex,targetCore,i,j,nid,k;
   char buffer[1024];
   char inpFile[128];
-  int **mat;
+  int **mat,fail;
+  T *v;
 
-
-  printf("Beginning\n");
 #ifdef MPI
   MPI_Init(&narg,&arg);
   world = MPI_COMM_WORLD;
@@ -65,28 +67,27 @@ int main(int narg, char *arg[])
 #else
   world=0, np=1;
 #endif
-  
 
-  printf("After mpi\n");
   comm_init(&comm,world);
   MPI_Comm_rank(world,&nid);
-
-
 
   if(nid==0){
     inp = fopen(arg[1],"r");
     mat = (int **) malloc(sizeof(int *)*np);
     //Only supports 2d right now
     fgets(buffer,1024,inp);
-    sscanf(buffer,"%d%d%d%d%d%d%d",&totalElements,&v1,&v2,&maxNp,&i,&j,&k);
+    sscanf(buffer,"%d%d%d%d%d%d%d",&totalElements,&maxArray,&v2,&maxNp,&i,&j,&k);
+    maxArray = maxArray+1; //Index off of 1, not 0
+    MPI_Bcast(&maxArray,1,MPI_INT,0,world);
+
+    duplicate_count = malloc(sizeof(int)*maxArray);
+
     //scanf("%d%d%d%d%d%d%d",&totalElements,&v1,&v2,&maxNp,&i,&j,&k);
     //    fscanf(inp,"%d%d%d%d%d%d%d",&totalElements,&v1,&v2,&maxNp,&i,&j,&k);
-    maxElementsPerCore = ceil((double)totalElements);
-    printf("maxElementsPerCore: %d\n",maxElementsPerCore);
-    MPI_Bcast(&maxElementsPerCore,1,MPI_INT,0,world);
+
     //Allocate memory for each core
     //Allocate memory for the elements
-    for(i=0;i<np;i++) mat[i] = (int*) malloc(sizeof(int)*4*maxElementsPerCore);
+    for(i=0;i<np;i++) mat[i] = (int*) malloc(sizeof(int)*4*totalElements);
 
     //Set an array for indexing the elements in the matrix
     targetCoreIndexing = (int *) malloc(sizeof(int)*np);
@@ -124,51 +125,110 @@ int main(int narg, char *arg[])
       targetCoreIndexing[targetCore] = targetCoreIndexing[targetCore]+1;
     }
     
-    sendbuf    = malloc(sizeof(int)*4*maxElementsPerCore*np);
+    sendbuf    = malloc(sizeof(long)*4*totalElements);
     sendcounts = malloc(sizeof(int)*np);
     displs     = malloc(sizeof(int)*np);
     k=0;
+    kOld=0;
+
+    //Distribute data
+
     for(i=0;i<np;i++) {
-      sendcounts[i] = 4*maxElementsPerCore;
-      displs[i]     = i*4*maxElementsPerCore;
       //Fill the send buffer
       for(j=0;j<targetCoreIndexing[i];j++){
         sendbuf[k] = mat[i][0+4*j];
-        printf("sendbuf[%d]: %d\n",k,sendbuf[k]);
         k++;
         sendbuf[k] = mat[i][1+4*j];
-        printf("sendbuf[%d]: %d\n",k,sendbuf[k]);
         k++;
         sendbuf[k] = mat[i][2+4*j];
-        printf("sendbuf[%d]: %d\n",k,sendbuf[k]);
         k++;
         sendbuf[k] = mat[i][3+4*j];
-        printf("sendbuf[%d]: %d\n",k,sendbuf[k]);
+        k++;
+      }
+      sendcounts[i] = (k-kOld);
+      if(i!=0){
+        MPI_Send(&sendcounts[i],1,MPI_INT,i,0,world);
+      }
+      displs[i]     = kOld;
+      kOld = k;
+    }
+
+    for(i=0;i<maxArray;i++){
+      duplicate_count[i] = 0;
+    }
+
+    //Count duplicates
+    for(i=0;i<4*totalElements;i++){
+      duplicate_count[sendbuf[i]]++;
+    }
+
+    //Bcast duplicates
+    MPI_Bcast(duplicate_count,maxArray,MPI_INT,0,world);
+
+    localBufSpace = sendcounts[0];
+    recvbuf = malloc(sizeof(long)*localBufSpace);
+    v = malloc(sizeof(double)*localBufSpace);
+    MPI_Scatterv(sendbuf,sendcounts,displs,MPI_LONG,recvbuf,localBufSpace,MPI_LONG,0,world);
+    if(np==1){
+      for(i=0;i<sendcounts[0];i++){
+        recvbuf[i] = sendbuf[i];
       }
     }
-    recvbuf = malloc(sizeof(int)*4*maxElementsPerCore);
-    MPI_Scatterv(sendbuf,sendcounts,displs,MPI_INT,recvbuf,4*maxElementsPerCore,MPI_INT,0,world);
   } else {
-    MPI_Bcast(&maxElementsPerCore,1,MPI_INT,0,world);
-    printf("Nid: %d maxEle: %d\n",nid,maxElementsPerCore);
-    recvbuf = malloc(sizeof(int)*4*maxElementsPerCore);
-    MPI_Scatterv(sendbuf,sendcounts,displs,MPI_INT,recvbuf,4*maxElementsPerCore,MPI_INT,0,world);
+    MPI_Recv(&localBufSpace,1,MPI_INT,0,0,world,MPI_STATUS_IGNORE);
+    MPI_Bcast(&maxArray,1,MPI_INT,0,world);
+    duplicate_count = malloc(sizeof(int)*maxArray);
+    MPI_Bcast(duplicate_count,maxArray,MPI_INT,0,world);
+    //printf("Nid: %d maxEle: %d\n",nid,localBufSpace);
+    recvbuf = malloc(sizeof(long)*localBufSpace);
+    v = malloc(sizeof(double)*localBufSpace);
+    MPI_Scatterv(sendbuf,sendcounts,displs,MPI_LONG,recvbuf,localBufSpace,MPI_LONG,0,world);
   }
 
-  for(i=0;i<maxElementsPerCore;i++){
-    printf("%d: ",nid);
-    k = i;
-    printf("%d ",recvbuf[k]);
-    k++;
-    printf("%d ",recvbuf[k]);
-    k++;
-    printf("%d ",recvbuf[k]);
-    k++;
-    printf("%d \n",recvbuf[k]);
+  gsh = gs_setup(recvbuf,localBufSpace,&comm,0,gs_auto,1);
+
+
+  //Fill v
+  for(i=0;i<localBufSpace;i++){
+    v[i] = recvbuf[i];
   }
 
-  //  test(&comm);
+#pragma acc data copy(v)
+  gs(v,dom,gs_add,0,gsh,0);
+#pragma acc end data
+
+  fail = 0;
+  //Check v
+  for(i=0;i<localBufSpace;i++){
+    if(v[i]!=duplicate_count[recvbuf[i]]*recvbuf[i]){
+      printf("Add failure on core %d index %d\n",nid,i);
+      printf("v %f recv %d %d\n",v[i],duplicate_count[recvbuf[i]],recvbuf[i]);
+      fail = 1;
+    }
+  }
   
+  if(fail==0) printf("Add success! on %d\n",nid);
+  //Fill v
+  for(i=0;i<localBufSpace;i++){
+    v[i] = recvbuf[i];
+  }
+
+#pragma acc data copy(v)
+  gs(v,dom,gs_mul,0,gsh,0);
+#pragma acc end data
+
+  fail = 0;
+  //Check v
+  for(i=0;i<localBufSpace;i++){
+    if(v[i]!=pow(recvbuf[i],duplicate_count[recvbuf[i]])){
+      printf("Mult failure on core %d index %d\n",nid,i);
+      printf("v %f recv %d\n",v[i],pow(recvbuf[i],duplicate_count[recvbuf[i]]));
+      fail = 1;
+    }
+  }
+  
+  if(fail==0) printf("Mult success! on %d\n",nid);
+
   comm_free(&comm);
   if(nid==0){
     for(i=0;i<np;i++) free(mat[i]);
