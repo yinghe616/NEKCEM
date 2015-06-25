@@ -1232,7 +1232,12 @@ static void gs_aux(
 #pragma acc enter data create(bufPtr[0:vn*gs_dom_size[dom]*gsh->r.buffer_size])
   acc = 0;
 #ifdef _OPENACC
-  if(acc_is_present(u,1)) acc = 1;
+  if(acc_is_present(u,1)) {
+    acc = 1;
+    printf("ACC IS ON\n");
+  } else {
+    printf("ACC IS OFF\n");
+  }
 #endif
 
   local_gather [mode](u,u,vn,gsh->map_local[0^transpose],dom,op,gsh->dstride,

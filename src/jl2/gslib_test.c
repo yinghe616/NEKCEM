@@ -193,9 +193,9 @@ int main(int narg, char *arg[])
     v[i] = recvbuf[i];
   }
 
-#pragma acc data copy(v)
+#pragma acc enter data copyin(v[0:localBufSpace])
   gs(v,dom,gs_add,0,gsh,0);
-#pragma acc end data
+
 
   fail = 0;
   //Check v
@@ -213,9 +213,10 @@ int main(int narg, char *arg[])
     v[i] = recvbuf[i];
   }
 
-#pragma acc data copy(v)
+#pragma acc data copy(v[0:localBufSpace])
+  {
   gs(v,dom,gs_mul,0,gsh,0);
-#pragma acc end data
+  }
 
   fail = 0;
   //Check v
