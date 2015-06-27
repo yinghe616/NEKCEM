@@ -1,5 +1,6 @@
 CC=mpicc #-std=c99 --pedantic
-CFLAGS+=-DMPI -c -acc
+CFLAGS+=-DMPI 
+CFLAGS+= -acc -ta=nvidia -Minfo=accel
 CFLAGS+=-DPREFIX=jl_
 CFLAGS+=-DNO_NEK_EXITT
 CFLAGS+=-DGLOBAL_LONG

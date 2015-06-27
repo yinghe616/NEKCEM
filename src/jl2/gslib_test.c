@@ -169,9 +169,10 @@ int main(int narg, char *arg[])
     recvbuf = malloc(sizeof(long)*localBufSpace);
     v = malloc(sizeof(double)*localBufSpace);
     MPI_Scatterv(sendbuf,sendcounts,displs,MPI_LONG,recvbuf,localBufSpace,MPI_LONG,0,world);
-    if(np==1){
+    if(np!=1){
       for(i=0;i<sendcounts[0];i++){
         recvbuf[i] = sendbuf[i];
+        printf("recv %d\n",recvbuf[i]);
       }
     }
   } else {
@@ -185,45 +186,44 @@ int main(int narg, char *arg[])
     MPI_Scatterv(sendbuf,sendcounts,displs,MPI_LONG,recvbuf,localBufSpace,MPI_LONG,0,world);
   }
 
-  gsh = gs_setup(recvbuf,localBufSpace,&comm,0,gs_auto,1);
+  gsh = gs_setup(recvbuf,localBufSpace,&comm,0,gs_crystal_router,1);
+#pragma acc enter data create(v[0:localBufSpace])
+#pragma acc enter data copyin(recvbuf[0:localBufSpace])
 
-
-  //Fill v
+#pragma acc parallel loop present(v[0:localBufSpace],recvbuf[0:localBufSpace])
   for(i=0;i<localBufSpace;i++){
     v[i] = recvbuf[i];
   }
 
-#pragma acc enter data copyin(v[0:localBufSpace])
   gs(v,dom,gs_add,0,gsh,0);
 
-
+#pragma acc update host(v[0:localBufSpace])
   fail = 0;
   //Check v
   for(i=0;i<localBufSpace;i++){
     if(v[i]!=duplicate_count[recvbuf[i]]*recvbuf[i]){
       printf("Add failure on core %d index %d\n",nid,i);
-      printf("v %f recv %d %d\n",v[i],duplicate_count[recvbuf[i]],recvbuf[i]);
+      printf("v[%d] %f recv %d %d\n",i,v[i],duplicate_count[recvbuf[i]],recvbuf[i]);
       fail = 1;
     }
   }
   
   if(fail==0) printf("Add success! on %d\n",nid);
   //Fill v
+#pragma acc parallel loop present(v[0:localBufSpace],recvbuf[0:localBufSpace])
   for(i=0;i<localBufSpace;i++){
     v[i] = recvbuf[i];
   }
 
-#pragma acc data copy(v[0:localBufSpace])
-  {
   gs(v,dom,gs_mul,0,gsh,0);
-  }
 
+#pragma acc update host(v[0:localBufSpace])
   fail = 0;
   //Check v
   for(i=0;i<localBufSpace;i++){
     if(v[i]!=pow(recvbuf[i],duplicate_count[recvbuf[i]])){
       printf("Mult failure on core %d index %d\n",nid,i);
-      printf("v %f recv %d\n",v[i],pow(recvbuf[i],duplicate_count[recvbuf[i]]));
+      printf("v[%d] %f recv %d %d\n",i,v[i],recvbuf[i],duplicate_count[recvbuf[i]]);
       fail = 1;
     }
   }

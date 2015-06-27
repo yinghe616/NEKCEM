@@ -1192,6 +1192,26 @@ static void auto_setup(struct gs_remote *r, struct gs_topology *top,
   }
 }
 
+
+void print_acc(double *a,int n){
+  int i;
+#pragma acc update host(a[0:n])
+  for(i=0;i<n;i++){
+    printf("%f ",a[i]);
+  }
+  printf("\n");
+}
+
+
+void print_acc_int(int *a,int n){
+  int i;
+#pragma acc update host(a[0:n])
+  for(i=0;i<n;i++){
+    printf("%d ",a[i]);
+  }
+  printf("\n");
+}
+
 /*------------------------------------------------------------------------------
   Main Execution
 ------------------------------------------------------------------------------*/
@@ -1239,7 +1259,6 @@ static void gs_aux(
     printf("ACC IS OFF\n");
   }
 #endif
-
   local_gather [mode](u,u,vn,gsh->map_local[0^transpose],dom,op,gsh->dstride,
                       gsh->mf_nt[0^transpose],gsh->map_localf[0^transpose],
 		      gsh->m_size[0^transpose],acc);
