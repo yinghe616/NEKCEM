@@ -209,8 +209,8 @@ c---------------------------------------------------------------------
          else
          call cem_drift_source  ! param(6)= 1   (to turn on source)
          call cem_drift_poisson ! solve potent and electric feild cEE
-c         call cem_drift_mobility_update
-c         call cem_drift_force  
+c        call cem_drift_mobility_update
+c        call cem_drift_force  
          call cem_drift_sem_bdf1
          call cem_drift_current_density    
          call cem_drift_current_surface    
@@ -766,15 +766,15 @@ c----------------------------------------------------------------------
 
 c...  setup variable for poisson solve: [ h1*A + h2*B ] phi = B*rhs
           do ifld=1,nfield
-          call rone    (dmask(1,ifld),npts)          
-          call dd_setdmaskp(dmask(1,ifld),npts,ifld)     
+          call rone         (dmask(1,ifld),npts)          
+          call dd_setdmaskp (dmask(1,ifld),npts,ifld)     
           enddo
 c... added by Ying Oct 6, 2014
       ! check value for nfield, if nfield=1, set dmask(:,1)=dmask(:,2)=dmask(:,3)=dmask(:,4)
       if (nfield.eq.1) then
-         do i=2,LDIMT
-            call copy(dmask(1,i),dmask(1,1),npts)
-         enddo
+          do i=2,LDIMT
+            call copy  (dmask(1,i),dmask(1,1),npts)
+          enddo
       endif
           call rone    (mult,npts)
           call dssum   (mult,nx1,ny1,nz1)
@@ -783,11 +783,11 @@ c... added by Ying Oct 6, 2014
           if (.not.ifsol) call col2(h1,d_permit,npts)
           call rzero   (h2,npts)
 
-c... setup variables for fast diagonalization: [A - kwave2*B] phi= B*rhs
-          if (IFGFDMDD) call gfdm_init(nx1,ny1,nz1,.false.,0.0)
-          icalled = 1
 !     Move data onto the device
 !$ACC ENTER DATA COPYIN(dmask,mult) CREATE(wk1)
+
+          if (IFGFDMDD) call gfdm_init(nx1,ny1,nz1,.false.,0.0)
+          icalled = 1
       endif
 
       if(ifpec.and.ifinhom) then
@@ -823,21 +823,21 @@ c...  additional treatment with projection method if negative
 c...  param(21)=-3: IFSEMG/projection=true
       if     (param(21).eq.-3)  then
         
-        call print_acc(rhs,5,'rhs1')
+        call print_acc (rhs,5,'rhs1',1)
         call project1  (rhs,npts,approx_o,napprox_o,h1,h2,
      $                  dmask(1,1),mult,ifwt,ifvec,'potent')
 
-        call print_acc(rhs,5,'rhs2')
-        call print_acc(approx_o(1,0),5,'app1')
+        call print_acc(rhs,5,'rhs2',1)
+        call print_acc(approx_o(1,0),5,'app1',1)
 
         call copy      (potent,rhs,npts)
 
-        call print_acc(potent,5,'pot1')
-        call print_acc(rhs,5,'rhs3')   
+        call print_acc(potent,5,'pot1',1)
+        call print_acc(rhs,5,'rhs3',1)   
 
         call hmh_gmres_mg (potent,h1,h2,mult,dmask(1,1),maxit)
 
-        call print_acc(potent,5,'pot2')   
+        call print_acc(potent,5,'pot2',1)   
 
         npts=nx1*ny1*nz1*nelt ! FIXME misun 12/28/2014: npts changes after multigrid.
         call project2  (potent,rhs,npts,approx_o,napprox_o,h1,h2,
@@ -984,7 +984,6 @@ c----------------------------------------------------------------------
       if (.not.ifsrc) return  ! param(6)=1 to turn on
 
 
-      call print_acc(rhs,5,'src0')
 !$ACC UPDATE HOST (resN,resP,resE,rhs)
 !$ACC UPDATE HOST (cN,cP,cE,potent)   
       call usersrc (idummy,resN,resP,resE,rhs,wk2,wk3)
@@ -992,8 +991,6 @@ c----------------------------------------------------------------------
 !$ACC UPDATE DEVICE (scN,scP,scE) 
 !$ACC UPDATE DEVICE (cN_b,cP_b,cE_b,potent_b) 
       icalled = 1
-
-      call print_acc(rhs,5,'src1')
 
       return
       end
@@ -3201,10 +3198,10 @@ c     GMRES iteration.
       n = nx1*ny1*nz1*nelt
 
             call print_acc(res,5,'top ',1)
-            call print_acc(mult,5,'m 1',1)
-            call print_acc(mask,5,'m 2',1)
-            call print_acc(h1,5,'h 1',1)
-            call print_acc(h2,5,'h 2',1)
+            call print_acc(mult,5,'m  1',1)
+            call print_acc(mask,5,'m  2',1)
+            call print_acc(h1,5,'h  1',1)
+            call print_acc(h2,5,'h  2',1)
       if (icalld.eq.0) call setup_mg(h1,h2)
    
 !$ACC ENTER DATA COPYIN(h1,h2) if(icalld.eq.0)
