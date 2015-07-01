@@ -239,19 +239,11 @@ c---------------------------------------------------------------------
       integer  i,j,k,l,ie,ieg
       real     tmp
 
-c     permea = permea_0             
-c     permit = permit_0                
-c     mu_n   = permea_0             
-c     mu_p   = permit_0                
-c     call rone(mu_n,npts)
-c     call cmult(mu_n,permea_0,npts)
-c     call rone(mu_p,npts)
-c     call cmult(mu_p,permit_0,npts)
-
 c...  FIXME: give correct numbers for parameters  
 c...  3/13/14: all these to be defined in user file.
 
-      if(ifsol) then
+
+      if (ifsol) then
 
          temperature=1.0
          K_beta= 1.0
@@ -269,15 +261,19 @@ c...  3/13/14: all these to be defined in user file.
          enddo
 
       else
+
+c  constant_0 =e_charge/temperature/K_beta !  r_coulomb=constant_0*e_charge/epsilon_0/4.0/pi
          temperature= 300.0
          K_beta     = 1.38044E-23
+         beta_temp  = k_beta*temperature
          e_charge   = 1.602e-19
-         epsilon_0  = 8.854e-12    !  constant_0 =e_charge/temperature/K_beta
-                                   !  r_coulomb=constant_0*e_charge/epsilon_0/4.0/pi
+         epsilon_0  = 8.854e-12    
+         scale_tmp    = epsilon_0*k_beta*temperature
          scale_x      = 1.e-9
          scale_mu     = 1.e-9
-         scale_time   = e_charge*scale_x**2/(scale_mu*K_beta*temperature)
-         scale_concent= epsilon_0*k_beta*temperature/e_charge**2/scale_x**2
+         scale_time   = e_charge*scale_x**2/(scale_mu*beta_temp)
+         scale_tmp    = epsilon_0*k_beta*temperature
+         scale_concent= scale_tmp/e_charge**2/scale_x**2
          constant_0   = 1.e27/scale_concent
          scale_potent = k_beta*temperature/e_charge
          scale_elect  = scale_potent/scale_x
@@ -314,8 +310,9 @@ c        tau_cE= 1.0E-6/scale_time
          write(6,*) 'r_coulomb',r_coulomb
          write(6,*) 'mu_n0',mu_n0
          write(6,*) 'mu_p0',mu_p0
-      
-      do ie=1,nelt
+         endif 
+
+         do ie=1,nelt
 
          if (if_in_region(ie).eq.1) then !donner
              do i=1,nxyz
@@ -375,7 +372,8 @@ c        tau_cE= 1.0E-6/scale_time
              if (nid.eq.0) write(6,*) if_in_region(ie),
      $        'if_in_region not defined in usr'
          endif
-      enddo
+         enddo
+
       endif
 
       do i=1,npts
@@ -387,7 +385,6 @@ c     if(ifexct) call copy(diff_e,mu_e,npts)
 
       return
       end
-c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
       subroutine userq  (ix,iy,iz,ieg)
       include 'SIZE'

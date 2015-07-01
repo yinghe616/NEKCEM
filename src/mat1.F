@@ -2806,7 +2806,7 @@ c-----------------------------------------------------------------------
       include 'CTIMER'
       logical is_present,acc_nek_present
 
-      is_present = (acc_nek_present(A,1).and.acc_nek_present(b,1))
+      is_present = (acc_nek_present(A,1).and.acc_nek_present(B,1))
 
 !$ACC DATA PRESENT(A,B) if(is_present)
 !$ACC PARALLEL LOOP if(is_present)
@@ -2816,7 +2816,6 @@ c-----------------------------------------------------------------------
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
 
-      tcopy=tcopy+(dclock()-etime1)
       RETURN
       END
 c-----------------------------------------------------------------------
@@ -2856,7 +2855,6 @@ c-----------------------------------------------------------------------
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
 
-      tcopy=tcopy+(dclock()-etime1)
       RETURN
       END
 c-----------------------------------------------------------------------
@@ -2881,7 +2879,6 @@ c-----------------------------------------------------------------------
 !$ACC END PARALLEL LOOP
 !$ACC END DATA
 
-      tcopy=tcopy+(dclock()-etime1)
       RETURN
       END
 c-----------------------------------------------------------------------
