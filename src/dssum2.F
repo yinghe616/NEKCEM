@@ -6,17 +6,19 @@ c-----------------------------------------------------------------------
       include 'NONCON'
       include 'PARALLEL'
       include 'TSTEP'
-      real u(1)
+      real     u(lx1*ly1*lz1*lelt)
 
       parameter (lface=lx1*ly1)
       common /nonctmp/ uin(lface,2*ldim),uout(lface)
+    
+      logical is_present, acc_nek_present 
 
+      is_present = acc_nek_present(u,1)
+   
+      
       ifldt = ifield
-c     if (ifldt.eq.0)       ifldt = 1
+
       if (ifldt.eq.ifldmhd) ifldt = 1
-c     if (nid.eq.0) 
-c    $    write(6,*) ' ifldt/ifield/gsh_fld/imsh',
-c    $                 ifldt,ifield,gsh_fld(ifldt),imsh     
 
       if (ifsync) call nekgsync()
 
@@ -44,7 +46,9 @@ c
 c                 ~ ~T
 c     This is the Q Q  part
 c
+!$ACC UPDATE HOST(u)   if (is_present)    
       call gs_op(gsh_fld(ifldt),u,1,1,0)  ! 1 ==> +
+!$ACC UPDATE DEVICE(u) if (is_present)    
 c
 c 
 c     This is the J  part,  interpolating parent solution onto child

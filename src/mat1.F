@@ -1207,10 +1207,18 @@ C-----------------------------------------------------------------------
       FUNCTION GLMIN(A,N)
       REAL A(1)
       DIMENSION TMP(1),WORK(1)
+      logical is_present,acc_nek_present
+      is_present = acc_nek_present(a,1)
+
       TMIN=99.0e20
+!$ACC DATA PRESENT(A(1:N)) if(is_present)
+!$ACC PARALLEL LOOP REDUCTION(MIN:TMIN) if(is_present)
       DO 100 I=1,N
          TMIN=MIN(TMIN,A(I))
   100 CONTINUE
+!$ACC END PARALLEL LOOP
+!$ACC END DATA
+
       TMP(1)=TMIN
       CALL GOP(TMP,WORK,'m  ',1)
       GLMIN = TMP(1)
@@ -2663,10 +2671,11 @@ C
       dcount      =      dcount + (isbcnt)
 #endif
 C
-      TMP = 0.0
-!$ACC DATA PRESENT(a(1:n),b(1:n),MULT(1:n))  if (is_present)
-!$ACC PARALLEL LOOP REDUCTION(+:TMP) VECTOR_LENGTH(128)  if (is_present)
-      DO 10 I=1,N
+      TMP  = 0.0
+
+!$ACC DATA PRESENT(a(1:n),b(1:n),MULT(1:n)) if (is_present)  
+!$ACC PARALLEL LOOP REDUCTION(+:TMP) if (is_present)
+      DO 10 I=1,N   
          TMP = TMP + a(I)*b(I)*MULT(I)
  10   CONTINUE
 !$ACC END PARALLEL LOOP
@@ -2674,6 +2683,7 @@ C
 
       CALL GOP(TMP,WORK,'+  ',1)
       GLSC3 = TMP
+     
 
       return
       end
@@ -2687,7 +2697,7 @@ c-----------------------------------------------------------------------
 
       TMAX=-99.0e20
 !$ACC DATA PRESENT(A(1:N)) if(is_present)
-!$ACC PARALLEL LOOP REDUCTION(+:TMAX) VECTOR_LENGTH(128) if(is_present)
+!$ACC PARALLEL LOOP REDUCTION(MIN:TMAX) if(is_present)
       DO 100 I=1,N
          TMAX=MAX(TMAX,A(I))
   100 CONTINUE
@@ -2695,6 +2705,7 @@ c-----------------------------------------------------------------------
 !$ACC END DATA
 
       TMP(1)=TMAX
+ 
       CALL GOP(TMP,WORK,'M  ',1)
       GLMAX=TMP(1)
 

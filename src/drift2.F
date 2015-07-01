@@ -389,9 +389,7 @@ c-----------------------------------------------------------------------
                alpha = alpha + .5*(vlsc2(xx(1,j),bb(1,k),n)
      $                       +     vlsc2(bb(1,j),xx(1,k),n))
             endif
-            write(6,*) 'aaaaaa',alpha
             scale = -glsum(alpha,1)
-            write(6,*) 'aaaaaa22',alpha,scale
             call add2s2(xx(1,k),xx(1,j),scale,n)
             call add2s2(bb(1,k),bb(1,j),scale,n)
          enddo

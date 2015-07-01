@@ -1305,7 +1305,7 @@ void fgs(const sint *handle, void *u, const sint *dom, const sint *op,
 {
   fgs_check_parms(*handle,*dom,*op,"gs_op",__LINE__);
 
-#ifdef _OPENACC
+/*#ifdef _OPENACC
   uint  dn,us;
   sint d,o;
   //  offset = *stride * gs_dom_size[*dom-1];
@@ -1316,11 +1316,11 @@ void fgs(const sint *handle, void *u, const sint *dom, const sint *op,
     fgs_fields_acc(handle, (double*)u,&d,&o,dom,op,transpose,fgs_info);
   } else {
     //{  
-#endif
+#endif*/
   cgs(u,fgs_dom[*dom],(gs_op_t)(*op-1),*transpose!=0,fgs_info[*handle],0);
-#ifdef _OPENACC
+/*#ifdef _OPENACC
   }
-#endif
+#endif*/
 }
 
 
