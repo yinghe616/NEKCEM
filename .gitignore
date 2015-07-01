@@ -37,4 +37,5 @@ SESSION.NAME
 *output
 *vtk*
 *tmp*
-
+*.lst
+*.i   

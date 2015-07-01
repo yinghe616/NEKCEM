@@ -29,6 +29,7 @@
                      tmpu2 = tmpu2 + D(j,l)*U(i,l,k,e)
                      tmpu3 = tmpu3 + D(k,l)*U(i,j,l,e)
                   enddo
+!$ACC END LOOP
                   U1(i,j,k,e) = tmpu1
                   U2(i,j,k,e) = tmpu2
                   U3(i,j,k,e) = tmpu3
@@ -36,7 +37,7 @@
             enddo
          enddo
       enddo
-!$ACC END LOOP
+!$ACC END PARALLEL LOOP
 !$ACC END DATA
       return
       end
@@ -75,6 +76,7 @@ c---------------------------------------------------------------
                      tmpu2 = tmpu2 + D(j,l)*U2(i,l,k,e)
                      tmpu3 = tmpu3 + D(k,l)*U3(i,j,l,e)
                   enddo
+!$ACC END LOOP 
                   V1(i,j,k,e) = tmpu1
                   V2(i,j,k,e) = tmpu2
                   V3(i,j,k,e) = tmpu3
@@ -82,7 +84,7 @@ c---------------------------------------------------------------
             enddo
          enddo
       enddo
-!$ACC END LOOP
+!$ACC END PARALLEL LOOP
 !$ACC END DATA
       return
       end
