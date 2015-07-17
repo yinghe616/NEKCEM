@@ -640,7 +640,7 @@ c-----------------------------------------------------------------------
       k = nxzfl               
 !$ACC DATA PRESENT(resHN,resEN,aream,srflx,cemface)
       if     (imode.eq.3) then !IF3D
-!$ACC LOOP SEQ
+!$ACC PARALLEL LOOP !FIXME originally ACC LOOP SEQ
         do j = 1,ncemface
            i = cemface(j)
            a = aream(j)
@@ -651,8 +651,9 @@ c-----------------------------------------------------------------------
            resEN(i,2) = resEN(i,2) + a*srflx(4*k+j)
            resEN(i,3) = resEN(i,3) + a*srflx(5*k+j)
         enddo
+!$ACC END PARALLEL LOOP 
       elseif (imode.eq.2) then !IFTM
-!$ACC LOOP SEQ
+!$ACC PARALLEL LOOP
         do j=  1,ncemface
            i = cemface(j)
            a = aream(j)
@@ -660,8 +661,9 @@ c-----------------------------------------------------------------------
            resHN(i,2) = resHN(i,2) + a*srflx(1*k+j)
            resEN(i,3) = resEN(i,3) + a*srflx(2*k+j)
         enddo
+!$ACC END PARALLEL LOOP 
       elseif (imode.eq.1) then !IFTE
-!$ACC LOOP SEQ
+!$ACC PARALLEL LOOP
         do j = 1,ncemface
            i = cemface(j)
            a = aream(j)
@@ -669,6 +671,7 @@ c-----------------------------------------------------------------------
            resEN(i,2) = resEN(i,2) + a*srflx(1*k+j)
            resHN(i,3) = resHN(i,3) + a*srflx(2*k+j)
         enddo
+!$ACC END PARALLEL LOOP 
       endif
 !$ACC END DATA
       return

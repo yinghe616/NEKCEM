@@ -863,10 +863,10 @@ C------------------------------------------------------------------
       INCLUDE 'CTIMER'
       include 'EMWAVE'
 C
-      REAL           AU    (LX1,LY1,LZ1,1)
-     $ ,             U     (LX1,LY1,LZ1,1)
-     $ ,             HELM1 (LX1,LY1,LZ1,1)
-     $ ,             HELM2 (LX1,LY1,LZ1,1)
+      REAL           AU    (LX1,LY1,LZ1,LELT)
+     $ ,             U     (LX1,LY1,LZ1,LELT)
+     $ ,             HELM1 (LX1,LY1,LZ1,LELT)
+     $ ,             HELM2 (LX1,LY1,LZ1,LELT)
       real           term1,term2,dnekclock
       integer isd,imsh
 C
@@ -971,8 +971,10 @@ c     ENDIF
          CALL COL2 (TMP1,HELM1,NTOT)
          CALL COL2 (TMP2,HELM1,NTOT)
          CALL GLO_2GRAD(DXTM1,TMP1,TMP2,TMP3,TM1,TM2,TM3)
-         CALL ADD2R (AU,TM1,NTOT)
-         CALL ADD2R (AU,TM2,NTOT)
+         CALL ADD2 (AU,TM1,NTOT) !FIXME 
+         CALL ADD2 (AU,TM2,NTOT) !FIXME
+         !CALL ADD2R (AU,TM1,NTOT)
+         !CALL ADD2R (AU,TM2,NTOT)
 
 c          ENDIF
          ELSE

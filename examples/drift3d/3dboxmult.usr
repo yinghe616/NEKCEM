@@ -553,16 +553,6 @@ c ... compute errors
         if (eyer.gt.0) eyer = sqrt(eyer)
         if (ezer.gt.0) ezer = sqrt(ezer)
 
-c----- temporaty
-        if (istep.eq. 0) then
-        if (nid.eq.0) write(10,*) 'Linf norm (cn,cp,phi)',nstep, dt
-        if (nid.eq.0) write(11,*) 'L2   norm (cn,cp,phi)',nstep, dt
-        if (nid.eq.0) write(10,*) Hxmr,Hymr,Hzmr
-        if (nid.eq.0) write(11,*) Hxer,hyer,hzer
-        else
-        if (nid.eq.0) write(10,*) Hxmr,Hymr,Hzmr
-        if (nid.eq.0) write(11,*) Hxer,hyer,hzer
-        endif
 c ... print statement
 
         snel = nelt + .5
