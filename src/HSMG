@@ -17,6 +17,7 @@ c
      $            , mg_nx(lmgn)                 !level poly. order (for GLL pts)
      $            , mg_ny(lmgn), mg_nz (lmgn)
      $            , mg_nh(lmgn), mg_nhz(lmgn)   !number of 1d nodes
+     $            , mg_imask(0:lmgs*lmg_rwt*4*ldim*lelt-1) ! For h1mg, mask is a ptr
      $            , mg_gsh_schwarz_handle(lmgn,lmgs) !dssum schwarz handles
      $            , mg_gsh_handle        (lmgn,lmgs) !dssum handle
      $            , mg_rstr_wt_index     (lmgx,0:lmgs)
@@ -34,6 +35,7 @@ c
       integer mg_fast_s_index, mg_fast_d_index
       integer mg_gsh_schwarz_handle
       integer mg_solve_index
+      integer mg_imask      
 c
       common /mghr/ mg_jh(lxm*lxm,lmgn)      !c-to-f interpolation matrices
      $            , mg_jht(lxm*lxm,lmgn)     !transpose of mg_jh
@@ -70,10 +72,6 @@ c
       real mg_solve_e,mg_solve_r
       real mg_h1,mg_h2,mg_b,mg_g
       real mg_work,mg_work2,mg_worke
-
-      integer mg_imask(0:lmgs*lmg_rwt*4*ldim*lelt-1) ! For h1mg, mask is a ptr
-      equivalence(mg_imask,mg_mask)
-
 
 c     Specific to h1 multigrid:
 
