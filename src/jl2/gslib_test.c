@@ -186,7 +186,7 @@ int main(int narg, char *arg[])
     MPI_Scatterv(sendbuf,sendcounts,displs,MPI_LONG,recvbuf,localBufSpace,MPI_LONG,0,world);
   }
 
-  gsh = gs_setup(recvbuf,localBufSpace,&comm,0,gs_crystal_router,1);
+  gsh = gs_setup(recvbuf,localBufSpace,&comm,0,gs_pairwise,1);
 #pragma acc enter data create(v[0:localBufSpace])
 #pragma acc enter data copyin(recvbuf[0:localBufSpace])
 

@@ -56,25 +56,6 @@ GS_FOR_EACH_DOMAIN(DEFINE_PROCS)
 #undef DEFINE_INIT
 #undef DEFINE_GATHER
 
-void print_acc1(double *a,int n){
-  int i;
-#pragma acc update host(a[0:n])
-  for(i=0;i<n;i++){
-    printf("%f ",a[i]);
-  }
-  printf("\n");
-}
-
-
-void print_acc_int1(uint *a,int n){
-  int i;
-#pragma acc update host(a[0:n])
-  for(i=0;i<n;i++){
-    printf("%d ",a[i]);
-  }
-  printf("\n");
-}
-
 /*------------------------------------------------------------------------------
   The basic gather kernel
 ------------------------------------------------------------------------------*/
@@ -86,18 +67,16 @@ static void gather_##T##_##OP( \
 {                                                                            \
   uint i,j,k;      \
   int dstride_in=1; \
-  T t;\
   if(in_stride==1) dstride_in=dstride; \
   for(k=0;k<vn;++k) {                                                        \
+_Pragma("acc parallel loop gang vector present(out,in,mapf[0:2*mf_nt],map[0:m_size]) async(k+1) if(acc)") \
     for(i=0;i<mf_nt;i++) {                                                   \
-    _Pragma("acc update host(out[map[mapf[i*2]]+k*dstride:1])")\
-      t=out[map[mapf[i*2]]+k*dstride];                                     \
-    _Pragma("acc parallel loop present(map[0:m_size],in,mapf[0:2*mf_nt])")\
-      for(j=0;j<mapf[i*2+1];j++) {                                      \
-        GS_DO_##OP(t,in[in_stride*map[mapf[i*2]+j+1]+k*dstride_in]);    \
+      T t=out[map[mapf[i*2]]+k*dstride];                                     \
+_Pragma("acc loop seq")						\
+      for(j=0;j<mapf[i*2+1];j++) {                                           \
+        GS_DO_##OP(t,in[in_stride*map[mapf[i*2]+j+1]+k*dstride_in]);         \
       }                                                                      \
       out[map[mapf[i*2]]+k*dstride] = t;                                 \
-      _Pragma("acc update device(out[map[mapf[i*2]]+k*dstride:1])")\
     }                                                                        \
   }                                                                          \
 _Pragma("acc wait")							\
@@ -117,10 +96,10 @@ static void scatter_##T( \
   if(in_stride==1)  dstride_in=dstride;                            \
   if(out_stride==1) dstride_out=dstride;                           \
   for(k=0;k<vn;++k) {                                              \
+_Pragma("acc parallel loop gang vector present(map[0:m_size],in,mapf[0:2*mf_nt],out) async(k+1) if(acc)") \
     for(i=0;i<mf_nt;i++) {                                         \
-_Pragma("acc update host(in[in_stride*map[mapf[i*2]]+k*dstride:1])")    \
       T t=in[in_stride*map[mapf[i*2]]+k*dstride_in];       \
- _Pragma("acc parallel loop seq present(map[0:m_size],out,mapf[0:2*mf_nt])") \
+_Pragma("acc loop seq")					   \
       for(j=0;j<mapf[i*2+1];j++) {                                 \
         out[out_stride*map[mapf[i*2]+j+1]+k*dstride_out] = t;          \
       }                                                            \
