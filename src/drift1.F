@@ -3912,8 +3912,14 @@ c----------------------------------------------------------------------
 
       n = mg_h1_n(l,mg_fld)
 
+      t1=dclock()
       call h1mg_schwarz_part1 (e,r,l)
+      t1=dclock()-t1
+      t2=dclock()
       call hsmg_schwarz_wt    (e,l)          ! e  := W e
+      t2=dclock()-t2
+      write(6,*) 'tttt schwarz_part1 t=',t1
+      write(6,*) 'tttt schwarz_wt    t=',t2
       call cmult              (e,sigma,n)    !  l       l
 
       return
