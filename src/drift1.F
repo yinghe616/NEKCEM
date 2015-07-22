@@ -3918,8 +3918,8 @@ c----------------------------------------------------------------------
       t2=dclock()
       call hsmg_schwarz_wt    (e,l)          ! e  := W e
       t2=dclock()-t2
-      write(6,*) 'tttt schwarz_part1 t=',t1
-      write(6,*) 'tttt schwarz_wt    t=',t2
+!      write(6,*) 'tttt schwarz_part1 t=',t1
+!      write(6,*) 'tttt schwarz_wt    t=',t2
       call cmult              (e,sigma,n)    !  l       l
 
       return
@@ -4431,7 +4431,7 @@ c     clobbers r
       integer ie,nn,i,j,k,l,i0,j0,k0,je,nu,nv
       parameter (lwk=(lx1+2)*(ly1+2)*(lz1+2))
       common /hsmgw/ work(0:lwk-1),work2(0:lwk-1)
-      real work,work2
+      real work,work2,tmp
 
       nn=nl**ndim
       nu=nl
@@ -4451,102 +4451,135 @@ c     clobbers r
 !FIXME: MJO - 5/9/15 - Maybe async on ie and parallel loop the mxms?
 !FIXME: to be optimized 6/30/2015 
 !$ACC DATA PRESENT(e,r,s,d) COPY(work,work2)
-!$ACC KERNELS       
+c!$ACC PARALLEL LOOP  GANG
+c!$ACC KERNELS
          do ie=1,nelt
 !            call mxm(A,nv,u,nu,work,nu*nu)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
             do j=1,nu*nu
                do i=1,nv
                   i0 = i + nv*(j-1)
-                  work(i0) = 0.0
+                  tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp) 
                   do k=1,nu
 !                    work(i,j) = work(i,j) + A(i,k) * u(k,j)
                      j0 = i + nv*(k-1)
                      k0 = k + nu*(j-1)
-                     work(i0) = work(i0) + s(j0,2,1,ie) * r(k0,ie)
+                     tmp = tmp + s(j0,2,1,ie) * r(k0,ie)
                   enddo
+!$ACC END LOOP
+                  work(i0) = tmp
                enddo
             enddo
+!$ACC END PARALLEL LOOP
 
+!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR 
             do i=1,nu
 !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
-                     work2(i0) = 0.0
+                     tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp) 
                      do k=1,nu
                         j0 = l + nv*(k-1) + nv*nu*(i-1)
                         k0 = k + nu*(j-1)
 !                       work2(j,l,i) = work2(j,l,i) + work(l,k,i)*Bt(k,j)
-                        work2(i0) = work2(i0) + work(j0)*s(k0,1,2,ie)
+                        tmp = tmp + work(j0)*s(k0,1,2,ie)
                      enddo
+!$ACC END LOOP
+                     work2(i0) = tmp
                   enddo
                enddo
             enddo
-
+!$ACC END PARALLEL LOOP
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
 !            call mxm(work2,nv*nv,Ct,nu,v,nv)
             do j=1,nv
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
-                  e(j0,ie) = 0.0
+                  tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp) 
                   do k=1,nu
                      i0 = i + nv*nv*(k-1)
                      k0 = k + nu*(j-1)
 !                   v(i,j) = v(i,j) + work2(i,k)*Ct(k,j) 
-                     e(j0,ie) = e(j0,ie) + work2(i0)*s(k0,1,3,ie)
+                     tmp = tmp + work2(i0)*s(k0,1,3,ie)
                   enddo
+!$ACC END LOOP
+                  e(j0,ie) = tmp
                enddo
             enddo
-
+!$ACC END PARALLEL LOOP
+!$ACC PARALLEL LOOP GANG VECTOR 
             do i=1,nn
                r(i,ie)=d(i,ie)*e(i,ie)
             enddo
+!$ACC END PARALLEL LOOP
 !            call hsmg_tnsr3d_el(e(1,ie),nl,r(1,ie),nl
 !     $                         ,s(1,1,1,ie),s(1,2,2,ie),s(1,2,3,ie))
 !            call mxm(A,nv,u,nu,work,nu*nu)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
             do j=1,nu*nu
                do i=1,nv
                   i0 = i + nv*(j-1)
-                  work(i0) = 0.0
+                  tmp = 0
+!$ACC LOOP REDUCTION(+:tmp) 
                   do k=1,nu
 !                    work(i,j) = work(i,j) + A(i,k) * u(k,j)
                      j0 = i + nv*(k-1)
                      k0 = k + nu*(j-1)
-                     work(i0) = work(i0) + s(j0,1,1,ie) * r(k0,ie)
+                     tmp = tmp + s(j0,1,1,ie) * r(k0,ie)
                   enddo
+!$ACC END LOOP
+                  work(i0) = tmp
                enddo
             enddo
+!$ACC END PARALLEL LOOP
 
+!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR 
             do i=1,nu
 !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
-                     work2(i0) = 0.0
+                     tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp)
                      do k=1,nu
                         j0 = l + nv*(k-1) + nv*nu*(i-1)
                         k0 = k + nu*(j-1)
 !                       work2(j,l,i) = work2(j,l,i) + work(l,k,i)*Bt(k,j)
-                        work2(i0) = work2(i0) + work(j0)*s(k0,2,2,ie)
+                        tmp = tmp + work(j0)*s(k0,2,2,ie)
                      enddo
+!$ACC END LOOP
+                     work2(i0) = tmp
                   enddo
                enddo
             enddo
-
+!$ACC END PARALLEL LOOP
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG 
 !            call mxm(work2,nv*nv,Ct,nu,v,nv)
             do j=1,nv
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
-                  e(j0,ie) = 0.0
+                  tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp) 
                   do k=1,nu
                      i0 = i + nv*nv*(k-1)
                      k0 = k + nu*(j-1)
 !                   v(i,j) = v(i,j) + work2(i,k)*Ct(k,j) 
-                     e(j0,ie) = e(j0,ie) + work2(i0)*s(k0,2,3,ie)
+                     tmp = tmp + work2(i0)*s(k0,2,3,ie)
                   enddo
+!$ACC END LOOP
+                  e(j0,ie) = tmp
                enddo
             enddo
+!$ACC END PARALLEL LOOP
          enddo
-!$ACC END KERNELS       
+c!$ACC END PARALLEL LOOP
+c!$ACC END KERNELS
+!$ACC WAIT
+
 !$ACC END DATA
       endif
       return
@@ -5689,7 +5722,7 @@ c----------------------------------------------------------------------
       include 'SIZE'
       integer nv,nu
       real A(nv,nu),Bt(nu,nv),Ct(nu,nv)
-      real v(nv*nv*nv*nelt)
+      real v(nv*nv*nv*nelt),tmp
       parameter (lwk=(lx1+2)*(ly1+2)*(lz1+2))
       common /hsmgw/ work(0:lwk-1),work2(0:lwk-1)
       integer e,e0,ee,es
@@ -5706,57 +5739,72 @@ c----------------------------------------------------------------------
 
       nu3 = nu**3
       nv3 = nv**3
-
+      print*,'es',es,'ee',ee,'e0',e0
 !$ACC DATA PRESENT(v,A,Bt,Ct) 
-!$ACC KERNELS    
+c!$ACC KERNELS    
       do e=e0,ee,es
          iu = (e-1)*nu3
          iv = (e-1)*nv3
 !     call mxm(A,nv,v(iu),nu,work,nu*nu)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR  
          do j=1,nu*nu
             do i=1,nv
                i0 = i + nv*(j-1)
-               work(i0) = 0.0
+               tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp) 
                do k=1,nu
 !     work(i,j) = work(i,j) + A(i,k) * v(k,j)
 !     nv  x (nu nu)          nv x nu    nu x (nu nu)
       
                   k0 = k + nu*(j-1) + iu
-                  work(i0) = work(i0) + A(i,k) * v(k0)
+                  tmp = tmp + A(i,k) * v(k0)
                enddo
+!$ACC END LOOP
+               work(i0) = tmp
             enddo
          enddo
+!$ACC END PARALLEL LOOP
 
+!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR 
          do i=1,nu
 !     call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
             do j=1,nv
                do l=1,nv
                   i0 = l + nv*(j-1) + nv*nv*(i-1)
-                  work2(i0) = 0.0
+                  tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp)
                   do k=1,nu
                      j0 = l + nv*(k-1) + nv*nu*(i-1)
                      k0 = k + nu*(j-1)
 !     work2(j,l,i) = work2(j,l,i) + work(l,k,i)*Bt(k,j)
-                     work2(i0) = work2(i0) + work(j0)*Bt(k,j)
+                     tmp = tmp + work(j0)*Bt(k,j)
                   enddo
+!$ACC END LOOP
+                  work2(i0) = tmp
                enddo
             enddo
          enddo
+!$ACC END PARALLEL LOOP
 !     call mxm(work2,nv*nv,Ct,nu,v(iv),nv)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
          do j=1,nv
             do i=1,nv*nv
                j0 = i + nv*nv*(j-1) + iv
-               v(j0) = 0.0
+               tmp = 0.0
+!$ACC LOOP REDUCTION(+:tmp)
                do k=1,nu
                   i0 = i + nv*nv*(k-1)
                   k0 = k + nu*(j-1)
 !     v(i,j) = v(i,j) + work2(i,k)*Ct(k,j) 
-                  v(j0) = v(j0) + work2(i0)*Ct(k,j)
+                  tmp = tmp + work2(i0)*Ct(k,j)
                enddo
+!$ACC END LOOP
+               v(j0) = tmp
             enddo
          enddo
+!$ACC END PARALLEL LOOP
       enddo
-!$ACC END KERNELS       
+c!$ACC END KERNELS       
 !$ACC END DATA 
 
       return
