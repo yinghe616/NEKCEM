@@ -3664,7 +3664,8 @@ c     v = [C (x) B (x) A] u
      $            acc_nek_present(Ct,1))
 
 ccc FIXME KERNELS--> PARALLEL LOOP
-!$ACC DATA PRESENT(v,u,A,Bt,Ct) if (is_present)
+CCC ASYNC(ie) doesn't work?
+!$ACC DATA PRESENT(v,u,A,Bt,Ct) create(work,work2) if (is_present)
 c!$ACC KERNELS  if (is_present)
          do ie=1,nelt
 !            call mxm(A,nv,u,nu,work,nu*nu)
@@ -3673,7 +3674,7 @@ c!$ACC KERNELS  if (is_present)
                do i=1,nv
                   i0 = i + nv*(j-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                   do k=1,nu
 !                    work(i,j) = work(i,j) + A(i,k) * u(k,j)
                      k0 = k + nu*(j-1)
@@ -3692,7 +3693,7 @@ c!$ACC KERNELS  if (is_present)
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
                      tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                      do k=1,nu
                         j0 = l + nv*(k-1) + nv*nu*(i-1)
                         k0 = k + nu*(j-1)
@@ -3712,7 +3713,7 @@ c!$ACC KERNELS  if (is_present)
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                   do k=1,nu
                      i0 = i + nv*nv*(k-1)
                      k0 = k + nu*(j-1)
@@ -4466,7 +4467,7 @@ c     clobbers r
       else
 !FIXME: MJO - 5/9/15 - Maybe async on ie and parallel loop the mxms?
 !FIXME: to be optimized 6/30/2015 
-!$ACC DATA PRESENT(e,r,s,d) COPY(work,work2)
+!$ACC DATA PRESENT(e,r,s,d) CREATE(work,work2)
 c!$ACC PARALLEL LOOP  GANG
 c!$ACC KERNELS
          do ie=1,nelt
@@ -4476,7 +4477,7 @@ c!$ACC KERNELS
                do i=1,nv
                   i0 = i + nv*(j-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                   do k=1,nu
 !                    work(i,j) = work(i,j) + A(i,k) * u(k,j)
                      j0 = i + nv*(k-1)
@@ -4496,7 +4497,7 @@ c!$ACC KERNELS
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
                      tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                      do k=1,nu
                         j0 = l + nv*(k-1) + nv*nu*(i-1)
                         k0 = k + nu*(j-1)
@@ -4515,7 +4516,7 @@ c!$ACC KERNELS
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                   do k=1,nu
                      i0 = i + nv*nv*(k-1)
                      k0 = k + nu*(j-1)
@@ -4540,7 +4541,7 @@ c!$ACC KERNELS
                do i=1,nv
                   i0 = i + nv*(j-1)
                   tmp = 0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                   do k=1,nu
 !                    work(i,j) = work(i,j) + A(i,k) * u(k,j)
                      j0 = i + nv*(k-1)
@@ -4560,7 +4561,7 @@ c!$ACC KERNELS
                   do l=1,nv
                      i0 = l + nv*(j-1) + nv*nv*(i-1)
                      tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                      do k=1,nu
                         j0 = l + nv*(k-1) + nv*nu*(i-1)
                         k0 = k + nu*(j-1)
@@ -4579,7 +4580,7 @@ c!$ACC KERNELS
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                   do k=1,nu
                      i0 = i + nv*nv*(k-1)
                      k0 = k + nu*(j-1)
@@ -5756,18 +5757,18 @@ c----------------------------------------------------------------------
       nu3 = nu**3
       nv3 = nv**3
 
-!$ACC DATA PRESENT(v,A,Bt,Ct) 
+!$ACC DATA PRESENT(v,A,Bt,Ct) create(work,work2)
 c!$ACC KERNELS    
       do e=e0,ee,es
          iu = (e-1)*nu3
          iv = (e-1)*nv3
 !     call mxm(A,nv,v(iu),nu,work,nu*nu)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR ASYNC(e)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR
          do j=1,nu*nu
             do i=1,nv
                i0 = i + nv*(j-1)
                tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp) 
+!$ACC LOOP SEQ 
                do k=1,nu
 !     work(i,j) = work(i,j) + A(i,k) * v(k,j)
 !     nv  x (nu nu)          nv x nu    nu x (nu nu)
@@ -5781,14 +5782,14 @@ c!$ACC KERNELS
          enddo
 !$ACC END PARALLEL LOOP
 
-!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR ASYNC(e)
+!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR
          do i=1,nu
 !     call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
             do j=1,nv
                do l=1,nv
                   i0 = l + nv*(j-1) + nv*nv*(i-1)
                   tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                   do k=1,nu
                      j0 = l + nv*(k-1) + nv*nu*(i-1)
                      k0 = k + nu*(j-1)
@@ -5802,12 +5803,12 @@ c!$ACC KERNELS
          enddo
 !$ACC END PARALLEL LOOP
 !     call mxm(work2,nv*nv,Ct,nu,v(iv),nv)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR ASYNC(e)
+!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR
          do j=1,nv
             do i=1,nv*nv
                j0 = i + nv*nv*(j-1) + iv
                tmp = 0.0
-!$ACC LOOP REDUCTION(+:tmp)
+!$ACC LOOP SEQ
                do k=1,nu
                   i0 = i + nv*nv*(k-1)
                   k0 = k + nu*(j-1)

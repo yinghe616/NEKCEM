@@ -27,10 +27,10 @@ export COMM_BACKEND=comm_mpi2
 export IO_BACKEND="io.o rbIO_nekcem.o vtkbin.o coIO_nekcem.o coIO_nekcem_read.o io_util.o mpiio_util.o io_driver.o"
 
 #UNDERSCORE is added to avoid compilation error for the case #of jl2 (vs. liftn) -- complaining for redefined function.
-C_DEFINES="-DMPIIO -Dr8 -DMPI -DMPISRC -DLONGINT8 -acc -DGSACC -DNO_C_MAIN -DUNDERSCORE -DGLOBAL_LONG_LONG $C_DEFINES"
+C_DEFINES="-DMPIIO -Dr8 -DMPI -mcmodel=medium -DMPISRC -DLONGINT8 -acc -DGSACC -DNO_C_MAIN -DUNDERSCORE -DGLOBAL_LONG_LONG $C_DEFINES"
 CXX_DEFINES="-DMPICH_IGNORE_CXX_SEEK"
 #FORTRAN_DEFINES="-DTIMER -DGPU -DPGF77 -DNO_C_MAIN $FORTRAN_DEFINES -acc -Minfo=accel" #from raven-acc
-FORTRAN_DEFINES="-DMPIIO -DGPU -DPGF77 -DNO_C_MAIN $FORTRAN_DEFINES -DGSACC -acc -Minfo=accel"
+FORTRAN_DEFINES="-DMPIIO -DGPU -DPGF77 -DNO_C_MAIN $FORTRAN_DEFINES -DGSACC -acc -mcmodel=medium -Minfo=accel"
 
 #export F77="ftn -Ktrap=fp \ # from raven-acc
 export F77="mpif90 -Mpreprocess -Ktrap=fp \
@@ -47,7 +47,7 @@ export EXTRALIBS=""
 # export EXTRALIBS="-ta=nvidia" # from raven-acc
 
 export LAPACK="-llapack -lblas "
-export LD="mpif90 -acc"
+export LD="mpif90 -acc -mcmodel=medium"
 OPT_FULL="-O3"
 OPT_DEBUG="-g -O0"
 
