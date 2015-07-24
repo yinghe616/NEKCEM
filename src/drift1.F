@@ -3665,11 +3665,13 @@ c     v = [C (x) B (x) A] u
 
 ccc FIXME KERNELS--> PARALLEL LOOP
 CCC ASYNC(ie) doesn't work?
-!$ACC DATA PRESENT(v,u,A,Bt,Ct) create(work,work2) if (is_present)
+c!$ACC DATA PRESENT(v,u,A,Bt,Ct) create(work,work2) if (is_present)
+!$ACC PARALLEL LOOP PRESENT(v,u,A,Bt,Ct) GANG WORKER
+!$ACC&              PRIVATE(work,work2) if(is_present)
 c!$ACC KERNELS  if (is_present)
          do ie=1,nelt
 !            call mxm(A,nv,u,nu,work,nu*nu)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR if(is_present)
+!$ACC LOOP COLLAPSE(2) VECTOR
             do j=1,nu*nu
                do i=1,nv
                   i0 = i + nv*(j-1)
@@ -3684,9 +3686,9 @@ c!$ACC KERNELS  if (is_present)
                   work(i0) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP          
+!$ACC END LOOP          
 
-!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR if(is_present)
+!$ACC LOOP COLLAPSE(3) VECTOR
             do i=1,nu
  !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
@@ -3705,10 +3707,10 @@ c!$ACC KERNELS  if (is_present)
                   enddo
                enddo
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 
 !            call mxm(work2,nv*nv,Ct,nu,v,nv)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR if(is_present)
+!$ACC LOOP COLLAPSE(2) VECTOR
             do j=1,nv
                do i=1,nv*nv
                   j0 = i + nv*nv*(j-1)
@@ -3724,11 +3726,12 @@ c!$ACC KERNELS  if (is_present)
                   v(j0,ie) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
          enddo
 c!$ACC END KERNELS      
-!$ACC WAIT
-!$ACC END DATA
+c!$ACC WAIT
+!$ACC END PARALLEL LOOP
+c!$ACC END DATA
 
       return
       end
@@ -4467,12 +4470,13 @@ c     clobbers r
       else
 !FIXME: MJO - 5/9/15 - Maybe async on ie and parallel loop the mxms?
 !FIXME: to be optimized 6/30/2015 
-!$ACC DATA PRESENT(e,r,s,d) CREATE(work,work2)
-c!$ACC PARALLEL LOOP  GANG
+c!$ACC DATA PRESENT(e,r,s,d) CREATE(work,work2)
+!$ACC PARALLEL LOOP GANG WORKER
+!$ACC&          PRESENT(e,r,s,d) PRIVATE(work,work2)
 c!$ACC KERNELS
          do ie=1,nelt
 !            call mxm(A,nv,u,nu,work,nu*nu)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
+!$ACC LOOP COLLAPSE(2) VECTOR 
             do j=1,nu*nu
                do i=1,nv
                   i0 = i + nv*(j-1)
@@ -4488,9 +4492,9 @@ c!$ACC KERNELS
                   work(i0) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 
-!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR 
+!$ACC LOOP COLLAPSE(3) VECTOR 
             do i=1,nu
 !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
@@ -4509,8 +4513,8 @@ c!$ACC KERNELS
                   enddo
                enddo
             enddo
-!$ACC END PARALLEL LOOP
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
+!$ACC END LOOP
+!$ACC LOOP COLLAPSE(2) VECTOR 
 !            call mxm(work2,nv*nv,Ct,nu,v,nv)
             do j=1,nv
                do i=1,nv*nv
@@ -4527,16 +4531,16 @@ c!$ACC KERNELS
                   e(j0,ie) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP
-!$ACC PARALLEL LOOP GANG VECTOR 
+!$ACC END LOOP
+!$ACC LOOP VECTOR 
             do i=1,nn
                r(i,ie)=d(i,ie)*e(i,ie)
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 !            call hsmg_tnsr3d_el(e(1,ie),nl,r(1,ie),nl
 !     $                         ,s(1,1,1,ie),s(1,2,2,ie),s(1,2,3,ie))
 !            call mxm(A,nv,u,nu,work,nu*nu)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR 
+!$ACC LOOP COLLAPSE(2) VECTOR 
             do j=1,nu*nu
                do i=1,nv
                   i0 = i + nv*(j-1)
@@ -4552,9 +4556,9 @@ c!$ACC KERNELS
                   work(i0) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 
-!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR 
+!$ACC LOOP COLLAPSE(3) VECTOR 
             do i=1,nu
 !              call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
                do j=1,nv
@@ -4573,8 +4577,8 @@ c!$ACC KERNELS
                   enddo
                enddo
             enddo
-!$ACC END PARALLEL LOOP
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG 
+!$ACC END LOOP
+!$ACC LOOP COLLAPSE(2) VECTOR 
 !            call mxm(work2,nv*nv,Ct,nu,v,nv)
             do j=1,nv
                do i=1,nv*nv
@@ -4591,13 +4595,13 @@ c!$ACC KERNELS
                   e(j0,ie) = tmp
                enddo
             enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
          enddo
-c!$ACC END PARALLEL LOOP
+!$ACC END PARALLEL LOOP
 c!$ACC END KERNELS
-!$ACC WAIT
+c!$ACC WAIT
 
-!$ACC END DATA
+c!$ACC END DATA
       endif
       return
       end
@@ -5757,13 +5761,15 @@ c----------------------------------------------------------------------
       nu3 = nu**3
       nv3 = nv**3
 
-!$ACC DATA PRESENT(v,A,Bt,Ct) create(work,work2)
+c!$ACC DATA PRESENT(v,A,Bt,Ct) create(work,work2)
+!$ACC PARALLEL LOOP GANG WORKER
+!$ACC&         PRESENT(v,A,Bt,Ct) PRIVATE(work,work2)
 c!$ACC KERNELS    
       do e=e0,ee,es
          iu = (e-1)*nu3
          iv = (e-1)*nv3
 !     call mxm(A,nv,v(iu),nu,work,nu*nu)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR
+!$ACC LOOP COLLAPSE(2) VECTOR
          do j=1,nu*nu
             do i=1,nv
                i0 = i + nv*(j-1)
@@ -5780,9 +5786,9 @@ c!$ACC KERNELS
                work(i0) = tmp
             enddo
          enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 
-!$ACC PARALLEL LOOP COLLAPSE(3) GANG VECTOR
+!$ACC LOOP COLLAPSE(3) VECTOR
          do i=1,nu
 !     call mxm(work(nv*nu*i),nv,Bt,nu,work2(nv*nv*i),nv)
             do j=1,nv
@@ -5801,9 +5807,9 @@ c!$ACC KERNELS
                enddo
             enddo
          enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
 !     call mxm(work2,nv*nv,Ct,nu,v(iv),nv)
-!$ACC PARALLEL LOOP COLLAPSE(2) GANG VECTOR
+!$ACC LOOP COLLAPSE(2) VECTOR
          do j=1,nv
             do i=1,nv*nv
                j0 = i + nv*nv*(j-1) + iv
@@ -5819,11 +5825,11 @@ c!$ACC KERNELS
                v(j0) = tmp
             enddo
          enddo
-!$ACC END PARALLEL LOOP
+!$ACC END LOOP
       enddo
 c!$ACC END KERNELS       
-!$ACC END DATA 
-
+c!$ACC END DATA 
+!$ACC END PARALLEL LOOP
       return
       end
 
