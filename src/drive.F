@@ -307,6 +307,7 @@ c...  walltime
           write(6,104) solve_wtime2,solve_wtime1,solve_wtime
           write(6,105) total_wtime2,total_wtime1,total_wtime
           write(6,  *) '\n'
+      endif
           setup_wtime0   = setup_wtime
           solve_wtime0   = solve_wtime
           total_wtime0   = total_wtime
@@ -932,12 +933,10 @@ c----------------------------------------------------------------------
 !$ACC&      COPYIN(d_permit,d_permea)
 !$ACC&      COPYIN(cemface_nmn,cemface_pec,cemface_r)
 !$ACC&      COPYIN(cN,cP,cE,cEE)
-!$ACC&      COPYIN(cN1,cP1,cE1,scn,scp,sce,spotent,potent,potent1,rhs)
-!$ACC&      COPYIN(potent_b,cN_b,cP_b,cE_b)
+!$ACC&      COPYIN(cN1,cP1,cE1,scn,scp,sce,potent,potent1,rhs)
+!$ACC&      CREATE(potent_b,cN_b,cP_b,cE_b)
 !$ACC&      COPYIN(approx_o)
 !$ACC&      COPYIN(cNJ,cPJ)
-!$ACC&      COPYIN(ErrN,ErrP,ErrE)
-
 !!$ACC&     COPYIN(G1M1,G2M1)
 !!$ACC&     COPYIN(G3M1,G4M1)
 !!$ACC&     COPYIN(G5M1,G6M1)
