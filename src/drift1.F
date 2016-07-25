@@ -214,7 +214,7 @@ c        call cem_drift_mobility_update
 c        call cem_drift_force  
          call cem_drift_sem_bdf1
          call cem_drift_current_density    
-         call cem_drift_current_surface    
+         if (if3d) call cem_drift_current_surface    
          endif
          if (iffilter) call drift_filter(0.01)
          return
@@ -1057,14 +1057,14 @@ c...    elliptic: 2nd + constant+ 1st
         do i=1,ncemface_r(2)
            j=cemface_r(i,2)
            i0=cemface(j)
-c         h2n(i0)=h2n(i0)-diff_n_dt(i0) !FIXME adjust diff_n_dt later
+         h2n(i0)=h2n(i0)-diff_n_dt(i0) !FIXME adjust diff_n_dt later
         enddo
         
 ! Adding terms for robin boundary condition   jn\cdot n= cn+g, g is included in source term
         do i=1,ncemface_r(3)
            j=cemface_r(i,3)
            i0=cemface(j)
-c          h2p(i0)=h2p(i0)-diff_p_dt(i0)
+          h2p(i0)=h2p(i0)-diff_p_dt(i0)
         enddo
         icalled = 1
 
@@ -1285,15 +1285,26 @@ c         if (nid.eq.0) open(unit=222,file='current_sc.txt')
       do i = 1,ncemface_r(2) ! includes both top and bottom
          j = cemface_r(i,2)
          k = cemface(j)
-         tmp_n=cnj(k,1)*unxm(j)+cnj(k,2)*unym(j) +cnj(k,3)*unzm(j)
-         tmp_p=cpj(k,1)*unxm(j)+cpj(k,2)*unym(j) +cpj(k,3)*unzm(j)
-
-         if (zmn(k).lt. 1000) then
-            current_top   = current_top   + (tmp_n-tmp_p)*area(j,1,1,1)
-            area_top      = area_top      +  area(j,1,1,1)
+         if (if3d) then
+            tmp_n=cnj(k,1)*unxm(j)+cnj(k,2)*unym(j) +cnj(k,3)*unzm(j)
+            tmp_p=cpj(k,1)*unxm(j)+cpj(k,2)*unym(j) +cpj(k,3)*unzm(j)
+            if (zmn(k).lt. 1000) then
+             current_top   = current_top   + (tmp_n-tmp_p)*area(j,1,1,1)
+             area_top      = area_top      +  area(j,1,1,1)
+            else
+             current_bottom= current_bottom+ (tmp_n-tmp_p)*area(j,1,1,1)
+             area_bottom   = area_bottom   + area(j,1,1,1)
+            endif
          else
-            current_bottom= current_bottom+ (tmp_n-tmp_p)*area(j,1,1,1)
-            area_bottom   = area_bottom   + area(j,1,1,1)
+            tmp_n=cnj(k,1)*unxm(j)+cnj(k,2)*unym(j)
+            tmp_p=cpj(k,1)*unxm(j)+cpj(k,2)*unym(j) 
+            if (ymn(k).lt. 1000) then
+             current_top   = current_top   + (tmp_n-tmp_p)*area(j,1,1,1)
+             area_top      = area_top      +  area(j,1,1,1)
+            else
+             current_bottom= current_bottom+ (tmp_n-tmp_p)*area(j,1,1,1)
+             area_bottom   = area_bottom   + area(j,1,1,1)
+            endif
          endif
       enddo
 
@@ -1389,13 +1400,13 @@ c...  and add it to the right-hand-side
       do i=1,ncemface_r(2) 
          j=cemface_r(i,2) 
          i0=cemface(j) 
-         resN(i0)=resN(i0)+dt*cN(i0)*aream(j) 
+!         resN(i0)=resN(i0)+dt*cN(i0)*aream(j) 
       enddo 
-! Explicit scheme: Adding terms for robin boundary condition   jn\cdot p=+cp+h, h is included in source term 
+! Explicit scheme: Adding terms for robin boundary condition   jp\cdot n=+cp+h, h is included in source term 
       do i=1,ncemface_r(3) 
          j=cemface_r(i,3) 
          i0=cemface(j) 
-         resP(i0)=resP(i0)+dt*cP(i0)*aream(j) 
+!         resP(i0)=resP(i0)+dt*cP(i0)*aream(j) 
       enddo
 
 ! Adding terms for inhom PEC boundary condition
