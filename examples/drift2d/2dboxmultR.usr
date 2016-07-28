@@ -227,7 +227,7 @@ c...  rhs_cp= rhs_cp + nbc_cp
          uu    = (sinx*cosy)**2*sint2      !       
          dudx  = pi*sinx2*cosy**2*sint2      
          dudy  =-pi/8.*sinx**2*siny2*sint2      
-         nbc_cp(i0)= 2.0*(1.0-uu) * (dudx*unx0+dudy*uny0) - 2.0*uu! + cN(i0) 
+         nbc_cp(i0)= 2.0*(1.0+uu) * (dudx*unx0+dudy*uny0) - 2.0*uu! + cN(i0) 
          nbc_cp(i0)= nbc_cp(i0)*area0
       enddo
 
