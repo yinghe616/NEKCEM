@@ -214,7 +214,7 @@ c        call cem_drift_mobility_update
 c        call cem_drift_force  
          call cem_drift_sem_bdf1
          call cem_drift_current_density    
-         if (if3d) call cem_drift_current_surface    
+         call cem_drift_current_surface    
          endif
          if (iffilter) call drift_filter(0.01)
          return
@@ -1272,7 +1272,7 @@ c-----------------------------------------------------------------------
       data    icalld/0/
 
       if (icalld.eq.0) then
-c         if (nid.eq.0) open(unit=222,file='current_sc.txt')  
+         if (nid.eq.0) open(unit=222,file='current_sc.txt')  
           icalld =1
       endif
  
@@ -1318,7 +1318,7 @@ c         if (nid.eq.0) open(unit=222,file='current_sc.txt')
          current_bottom= tmp_j2/tmp_a2
 
          if (nid.eq.0) then 
-             write(*,22)istep,time,current_top,current_bottom
+             write(222,22)istep,time,current_top,current_bottom
    22        format('current_sc',i10,f15.3,1p2e18.3) 
          endif
       endif
