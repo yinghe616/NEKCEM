@@ -99,7 +99,6 @@ C...  box mesh with periodic boundary
 c...  call chsign(rhs_nmn,n2)      ! n*(dxinc,dyinc,dzinc)
 
       call hmhDtN  ! return potent --> total field
-c      call cem_acoustic_eig
       
       call cem_dtn_quasi_sol(potent(1),alpha0(1),1)
       call cem_dtn_quasi_sol(rhs_inc(1),alpha0(1),1)
@@ -151,6 +150,7 @@ c      call cem_acoustic_eig
  50   format(' val_tot    :: imag max/min=',2e25.15)
  60   format(' val_err_tot::    real/imag:',2e25.15,4i8)
 
+      call cem_acoustic_eig
       return
       end
 c-----------------------------------------------------------------------
